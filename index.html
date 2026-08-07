@@ -221,13 +221,19 @@ import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager
          doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, onSnapshot,
          query, orderBy, limit, where, documentId, getDocs, writeBatch,
          serverTimestamp, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getMessaging, getToken, onMessage, isSupported } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js';
 
 /* ================= Firebase ================= */
 const fbApp = initializeApp({
   apiKey: "AIzaSyB3uatL-JJT9Pnt-kcSiKqs9CTXd4szm2E",
   authDomain: "pm-maintenance-c618e.firebaseapp.com",
-  projectId: "pm-maintenance-c618e"
+  projectId: "pm-maintenance-c618e",
+  storageBucket: "pm-maintenance-c618e.firebasestorage.app",
+  messagingSenderId: "292661627446",
+  appId: "1:292661627446:web:71d6fe9c484cbbddffa697"
 });
+const VAPID = "BFBAWhOo30zszuaNUYVgPdB49wNG0KOi_vs8qHsaM4wyBdRntOQRdDKJxVgGJPjoWm5OjJqHpwthid2NI9mOxK8";
+let messaging=null, swReg=null, msgSupported=false;
 const db = initializeFirestore(fbApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 const auth = getAuth(fbApp);
 
@@ -414,6 +420,7 @@ onAuthStateChanged(auth, user=>{
 signInAnonymously(auth).catch(e=>{
   document.getElementById('loadmsg').textContent='Connection failed: '+e.code+' — check internet and reload.';
 });
+initMessaging();
 window.addEventListener('online', ()=>{S.offline=false;render();});
 window.addEventListener('offline', ()=>{S.offline=true;render();});
 
@@ -463,6 +470,7 @@ function maybeResume(){
       S.me=S.peopleById[saved.personId];
       lang=saved.lang||S.me.lang||'en';
       S.screen='home';
+      maybeSilentToken();
     }
   }catch(e){}
   scheduleMidnight();
@@ -487,6 +495,7 @@ async function trySignIn(person,pin){
     lang=S.me.lang||'en';
     localStorage.setItem('pmLive',JSON.stringify({personId:person.id,day:S.todayKey,lang}));
     S.screen='home'; S.tab='today'; S.pinFor=null; S.pinBuf=''; S.pinErr='';
+    maybeSilentToken();
   }catch(e){
     S.pinBuf='';
     S.pinErr = (e.code==='permission-denied') ? t('signin.wrong') : (t('err.write')+' ('+(e.code||e.message)+')');
@@ -506,6 +515,44 @@ function writeFail(e){
   else toast(t('err.write'));
 }
 function nowHM(){ return new Intl.DateTimeFormat(lang==='es'?'es':'en-US',{timeZone:TZ,hour:'numeric',minute:'2-digit'}).format(new Date()); }
+
+/* ================= push notifications ================= */
+function isIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent||'') || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1); }
+function isStandalone(){ return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true; }
+function notifSupported(){ return ('Notification' in window)&&('serviceWorker' in navigator)&&msgSupported; }
+async function initMessaging(){
+  try{
+    if(!('serviceWorker' in navigator)||!('Notification' in window)) return;
+    msgSupported = await isSupported().catch(()=>false);
+    if(!msgSupported) return;
+    swReg = await navigator.serviceWorker.register('./firebase-messaging-sw.js').catch(()=>null);
+    if(!swReg){ msgSupported=false; return; }
+    messaging = getMessaging(fbApp);
+    onMessage(messaging, payload=>{ const d=payload.data||payload.notification||{}; if(d.title||d.body) toast('🔔 '+(d.title||d.body)); });
+  }catch(e){ msgSupported=false; }
+}
+async function registerToken(silent){
+  if(!notifSupported()){
+    if(!silent) toast(isIOS()&&!isStandalone()
+      ? (lang==='es'?'Primero agrega la app a tu pantalla de inicio.':'Add the app to your Home Screen first.')
+      : (lang==='es'?'Notificaciones no disponibles en este navegador.':"Notifications aren't available on this browser."));
+    return;
+  }
+  if(!S.me||!S.uid) return;
+  try{
+    if(Notification.permission!=='granted'){
+      const p=await Notification.requestPermission();
+      if(p!=='granted'){ if(!silent) toast(lang==='es'?'Permiso no concedido.':'Permission not granted.'); return; }
+    }
+    const tok=await getToken(messaging,{vapidKey:VAPID, serviceWorkerRegistration:swReg});
+    if(!tok){ if(!silent) toast(t('err.write')); return; }
+    await setDoc(doc(db,'tokens',S.uid),{ token:tok, personId:S.me.id, lang:S.me.lang||lang,
+      platform:(isIOS()?'ios':(/android/i.test(navigator.userAgent)?'android':'web'))+(isStandalone()?'-pwa':''),
+      at:serverTimestamp() });
+    if(!silent) toast(lang==='es'?'Notificaciones activadas ✓':'Notifications on ✓');
+  }catch(e){ if(!silent) toast((lang==='es'?'No se pudo activar: ':"Couldn't enable: ")+(e.code||e.message||'')); }
+}
+function maybeSilentToken(){ if(window.Notification && Notification.permission==='granted') registerToken(true); }
 
 async function checkOff(task){
   const dk=S.todayKey, id=task.id;
@@ -1011,6 +1058,7 @@ function issueSheet(opts){
     const machineCode=fixedMachine?opts.machineCode:sheet.querySelector('#mach').value;
     const unitSel=sheet.querySelector('#unit');
     const data={machineCode,urgent,usable:cond,note};
+    data.machineName = machineCode==='OTHER' ? null : mName(machineCode);
     if(unitSel&&unitSel.value)data.unit=unitSel.value;
     if(opts.taskId)data.taskId=opts.taskId;
     createIssue(data);
@@ -1038,6 +1086,7 @@ async function openSettings(){
     <div class="sub">${t('set.signedin')} <b style="color:var(--ink)">${S.me.name}</b></div>
     <div class="field-lbl">🔔 ${t('set.notif')}</div>
     <div id="radios"></div>
+    <div id="devrow" style="margin-top:8px"></div>
     <div class="setnote">${t('set.badgeAlways')}</div>
     <button class="btn-primary" data-close style="margin-top:16px">${t('task.close')}</button>
     <button class="btn-ghost" data-out>${t('signout')}</button></div>`);
@@ -1054,6 +1103,24 @@ async function openSettings(){
     });
   }
   paint();
+  function paintDev(){
+    const el=sheet.querySelector('#devrow'); if(!el) return; el.innerHTML='';
+    if(!notifSupported()){
+      if(isIOS()&&!isStandalone())
+        el.appendChild($(`<div class="devrow">📲 <span>${lang==='es'?'Para recibir avisos, agrega esta app a tu pantalla de inicio (Compartir → Agregar a inicio).':'To get alerts, add this app to your Home Screen (Share → Add to Home Screen).'}</span></div>`));
+      else
+        el.appendChild($(`<div class="devrow"><span class="dnote">🔕 ${lang==='es'?'Notificaciones no disponibles en este navegador.':'Notifications not available on this browser.'}</span></div>`));
+    } else if(Notification.permission==='granted'){
+      el.appendChild($(`<div class="devrow" style="border-style:solid;border-color:var(--good);color:var(--good)"><span>🔔 ${lang==='es'?'Activadas en este teléfono':'On for this phone'} ✓</span></div>`));
+    } else if(Notification.permission==='denied'){
+      el.appendChild($(`<div class="devrow"><span class="dnote">🔕 ${lang==='es'?'Bloqueadas — actívalas en los ajustes del teléfono.':"Blocked — turn them on in your phone's settings."}</span></div>`));
+    } else {
+      const btn=$(`<button class="btn-primary" style="height:48px">🔔 ${t('set.device')}</button>`);
+      btn.onclick=async()=>{ await registerToken(false); paintDev(); };
+      el.appendChild(btn);
+    }
+  }
+  paintDev();
   sheet.querySelector('[data-close]').onclick=closeModal;
   sheet.querySelector('[data-out]').onclick=()=>{closeModal();doSignOut(false);};
   bg.onclick=(e)=>{if(e.target===bg)closeModal();};
