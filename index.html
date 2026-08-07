@@ -93,6 +93,31 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .mcard .frac .done-n{color:var(--good)}
 .mcard .count-lbl{display:block;font-size:.64rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:5px}
 .chev{color:var(--muted);font-size:1.2rem;margin-left:6px}
+/* timeframe selector */
+.tfrow{display:flex;gap:5px}
+.tfchip{flex:1;text-align:center;white-space:nowrap;border:1.5px solid var(--line);background:var(--card);color:var(--muted);border-radius:10px;padding:8px 2px;font-size:.74rem;font-weight:700}
+.tfchip.on{background:var(--gold);border-color:var(--gold);color:#fff}
+/* compact cadence card */
+.mcard2{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:12px;padding:12px 14px;width:100%;text-align:left}
+.mcard2 .micon{width:42px;height:42px;border-radius:11px;background:var(--brand-soft);color:var(--brand-ink);display:grid;place-items:center;font-size:1.15rem;flex:none}
+.mcard2 .mleft{flex:1;min-width:0}
+.mcard2 .m-name{display:block;font-weight:700;font-size:1rem;line-height:1.15}
+.mcard2 .m-sub{display:block;font-size:.78rem;color:var(--muted);margin-top:2px}
+.mright{flex:none;display:grid;grid-template-columns:auto auto auto;column-gap:7px;row-gap:2px;align-items:baseline}
+.mright .rl{font-size:.66rem;color:var(--muted);font-weight:700;text-transform:uppercase;justify-self:end}
+.mright .rv{font-size:.74rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;justify-self:end}
+.mright .rk{font-size:.74rem;color:var(--good);font-weight:800;justify-self:start;min-width:10px}
+.mright .sl{color:var(--gold-deep);font-size:.76rem;font-weight:800;text-transform:uppercase;justify-self:end;align-self:center}
+.mright .sv{font-size:1.35rem;font-weight:800;font-variant-numeric:tabular-nums;justify-self:end;line-height:1}
+.mright .sk{color:var(--good);font-weight:800;font-size:1rem;justify-self:start;min-width:12px;align-self:center}
+.mright .c{color:var(--good)}
+.mcard2 .chev{color:var(--muted);font-size:1.15rem;flex:none}
+/* machine-detail cadence chips */
+.cadchips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;-webkit-overflow-scrolling:touch}
+.cadchip{white-space:nowrap;border:1.5px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:7px 13px;font-size:.82rem;font-weight:700;flex:none}
+.cadchip.on{background:var(--gold-soft);border-color:var(--gold);color:var(--gold-deep)}
+.cadchip .cc{opacity:.75;font-weight:800}
 .sortrow{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:12px}
 .sortlbl{font-size:.72rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .sortsel{appearance:none;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 30px 8px 14px;font-size:.82rem;font-weight:700;color:var(--ink);
@@ -223,6 +248,23 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .radio .rtag{display:inline-block;font-size:.62rem;font-weight:800;color:var(--gold-deep);background:#fff;border:1px solid var(--gold);padding:2px 7px;border-radius:999px;margin-top:5px;text-transform:uppercase;letter-spacing:.04em}
 .setnote{color:var(--muted);font-size:.8rem;text-align:center;margin:14px 4px 2px}
 .offline{background:var(--due-soft);color:var(--due);font-size:.75rem;font-weight:700;text-align:center;padding:6px}
+
+/* ===== dark mode (follows the phone's setting) ===== */
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#1e1f24; --card:#2a2b32; --ink:#ece6da; --muted:#a49a88; --line:#3a3b44;
+    --charcoal:#15161b; --gold:#c9a24e; --gold-deep:#e0bd6a; --gold-soft:#37311f;
+    --brand:#2a2b32; --brand-ink:#ece6da; --brand-soft:#3a3b44;
+    --good:#83bc90; --good-soft:#26312a; --bad:#e78e86; --bad-soft:#3a2724;
+    --due:#cfa658; --due-soft:#37301e; --urgent:#e78e86;
+    --shadow:0 1px 2px rgba(0,0,0,.30),0 1px 3px rgba(0,0,0,.40);
+  }
+  .nav{background:rgba(30,31,37,.95)}
+  .brandrow .logo{background:#f5efe2;border-radius:16px;padding:6px}
+  .opt,.note,.selbox,.seg button,.radio,.task .check,.devrow{background:var(--card)}
+  .lang{background:rgba(255,255,255,.12)}
+  .toast{background:#0f1013}
+}
 </style>
 </head>
 <body>
@@ -257,6 +299,16 @@ const TZ = 'America/Chicago';
 const ONDEMAND = new Set(['Every Load','Every 3 Loads','Every 25 Loads','Every 250 Loads','Every 300 Loads','As Needed']);
 const PERIODIC = ['Weekly','Bi-Weekly','Monthly','Quarterly','Semi-Annually','Annually','Every 45 Days'];
 const FREQ_ORDER = ['Daily','Mon & Thu','Weekly','Bi-Weekly','Every 45 Days','Monthly','Quarterly','Semi-Annually','Annually'];
+const CAD_ORDER = ['Daily','Weekly','Monthly','Quarterly','Semi-Annual','Annual'];
+function cadenceOf(f){
+  if(f==='Daily'||f==='Mon & Thu') return 'Daily';
+  if(f==='Weekly'||f==='Bi-Weekly') return 'Weekly';
+  if(f==='Monthly'||f==='Every 45 Days') return 'Monthly';
+  if(f==='Quarterly') return 'Quarterly';
+  if(f==='Semi-Annually') return 'Semi-Annual';
+  if(f==='Annually') return 'Annual';
+  return 'AsNeeded';
+}
 
 /* ================= i18n ================= */
 const EXTRA = {
@@ -271,6 +323,15 @@ const EXTRA = {
   "sort.default":{en:"Sheet order",es:"Orden de hoja"},
   "sort.alpha":{en:"A–Z",es:"A–Z"},
   "sort.count":{en:"Most tasks",es:"Más tareas"},
+  "cad.Daily":{en:"Daily",es:"Diario"},
+  "cad.Weekly":{en:"Weekly",es:"Sem."},
+  "cad.Monthly":{en:"Monthly",es:"Mens."},
+  "cad.Quarterly":{en:"Qtly",es:"Trim."},
+  "cad.Semi-Annual":{en:"Semi",es:"Semes."},
+  "cad.Annual":{en:"Annual",es:"Anual"},
+  "cad.AsNeeded":{en:"As needed",es:"Cuando"},
+  "home.machines":{en:"Machines",es:"Máquinas"},
+  "home.period":{en:"done this period",es:"hechas este periodo"},
   "nav.history":{en:"History",es:"Historial"},
   "nav.shift":{en:"Shift",es:"Turno"},
   "hist.title":{en:"Task history",es:"Historial de tareas"},
@@ -322,6 +383,13 @@ const EXTRA = {
   "iss.markdown":{en:"marked machine unusable",es:"marcó la máquina fuera de servicio"},
   "iss.markup":{en:"marked machine usable",es:"marcó la máquina utilizable"},
   "iss.clearedAction":{en:"cleared this issue",es:"resolvió el problema"},
+  "iss.edit":{en:"Edit",es:"Editar"},
+  "iss.editTitle":{en:"Edit issue",es:"Editar problema"},
+  "iss.save":{en:"Save changes",es:"Guardar cambios"},
+  "iss.saved":{en:"Saved.",es:"Guardado."},
+  "iss.delete":{en:"Delete",es:"Eliminar"},
+  "iss.deleteConfirm":{en:"Delete this issue permanently? This can't be undone.",es:"¿Eliminar este problema permanentemente? No se puede deshacer."},
+  "iss.deleted":{en:"Issue deleted.",es:"Problema eliminado."},
   "set.title":{en:"Settings",es:"Ajustes"},
   "set.signedin":{en:"Signed in as",es:"Sesión de"},
   "set.notif":{en:"Notify my phone when…",es:"Avisar a mi teléfono cuando…"},
@@ -389,6 +457,7 @@ const S = {
   issues:[], notes:[], notesFor:null,
   screen:'signin', tab:'today', machine:null, viewIssue:null,
   sort:(localStorage.getItem('pmSort')||'default'),
+  tf:(localStorage.getItem('pmTf')||'Daily'), machineCadence:'Daily',
   histMachine:'', histSearch:'', histTask:null, histEvents:[], histLoading:false, histMisses:false,
   pinFor:null, pinBuf:'', pinErr:'', pinBusy:false,
   calMonth:null, fMachine:'', fFreq:'', fStatus:'', calDay:null,
@@ -742,60 +811,72 @@ function renderTop(){
   return bar;
 }
 
+function cadenceMap(){
+  // one pass: code -> { cadKey -> [tasks] }
+  const map={};
+  S.tasks.forEach(tk=>{
+    const c=cadenceOf(tk.freq);
+    (map[tk.code]=map[tk.code]||{});
+    (map[tk.code][c]=map[tk.code][c]||[]).push(tk);
+  });
+  return map;
+}
 function renderToday(){
   const s=$('<div class="screen"></div>');
-  const due=dueTodayList();
-  const doneCount=due.filter(tk=>isDoneNow(tk)).length;
-  const codes=[...new Set(due.map(tk=>tk.code))];
-  const dailyCodes=codes.filter(c=>due.some(tk=>tk.code===c&&(tk.freq==='Daily'||tk.freq==='Mon & Thu')));
-  const periodicCodes=codes.filter(c=>!dailyCodes.includes(c));
+  const cmap=cadenceMap();
   const dateStr=new Date(keyToUTC(S.todayKey)).toLocaleDateString(lang==='es'?'es':'en',{weekday:'long',month:'short',day:'numeric',timeZone:'UTC'});
 
   s.appendChild($(`<div class="pad" style="display:flex;align-items:baseline;justify-content:space-between;margin-top:16px">
     <div style="font-size:1.35rem;font-weight:800">${t('home.today')}</div>
     <div class="muted" style="font-size:.85rem">${dateStr}</div></div>`));
-  s.appendChild($(`<div class="pad" style="font-size:.95rem;margin-top:4px"><span style="font-weight:800;color:var(--good)">${doneCount}</span><span style="font-weight:800">/${due.length}</span> <span class="muted">${t('card.completed').toLowerCase()} · ${due.length} ${t('card.tasks')}</span></div>`));
-  if(due.length&&doneCount===due.length) s.appendChild($(`<div class="allclear"><span class="big">✓</span>${t('home.alldone')}</div>`));
+
+  // timeframe selector (equal segments, no scroll)
+  const tfrow=$('<div class="pad" style="margin-top:12px"><div class="tfrow"></div></div>');
+  const tr=tfrow.querySelector('.tfrow');
+  CAD_ORDER.forEach(k=>{
+    const c=$(`<button class="tfchip ${S.tf===k?'on':''}">${t('cad.'+k)}</button>`);
+    c.onclick=()=>{S.tf=k;localStorage.setItem('pmTf',k);render();window.scrollTo(0,0);};
+    tr.appendChild(c);
+  });
+  s.appendChild(tfrow);
+
+  // summary across all machines for the selected timeframe
+  let sd=0,st=0;
+  Object.keys(cmap).forEach(code=>{ const l=cmap[code][S.tf]; if(l){ st+=l.length; sd+=l.filter(isDoneNow).length; } });
+  const full=st>0&&sd===st;
+  s.appendChild($(`<div class="pad" style="font-size:.95rem;margin-top:8px">
+    <span style="font-weight:800;color:var(--good)">${sd}</span><span style="font-weight:800">/${st}</span>
+    <span class="muted"> ${t('cad.'+S.tf).toLowerCase()} · ${t('home.period')}</span>${full?' <span style="color:var(--good);font-weight:800">✓</span>':''}</div>`));
+
   s.appendChild(sortControl());
+  s.appendChild($(`<h2 class="sec pad">${t('home.machines')}</h2>`));
 
-  function machineList(title,list){
-    if(!list.length)return;
-    s.appendChild($(`<h2 class="sec pad">${title}</h2>`));
-    const stack=$('<div class="stack pad"></div>');
-    list.forEach(code=>{
-      const m=S.machines.find(x=>x.code===code);
-      const mDue=due.filter(tk=>tk.code===code);
-      const mDone=mDue.filter(tk=>isDoneNow(tk)).length;
-      const card=$(`<button class="card mcard">
-        <span class="icon">${MICON[code]||'⚙️'}</span>
-        <span><span class="m-name">${pretty(m.name)}</span><span class="m-sub">${m.units?pretty(m.units):''}</span></span>
-        <span class="m-right"><span class="frac"><span class="done-n">${mDone}</span>/${mDue.length}</span><span class="count-lbl">${t('card.completed')}</span></span>
-        <span class="chev">›</span></button>`);
-      card.onclick=()=>{S.machine=code;render();window.scrollTo(0,0);};
-      stack.appendChild(card);
-    });
-    s.appendChild(stack);
-  }
-  machineList(t('home.daily'),sortCodes(dailyCodes,due));
-  machineList(t('home.weekly'),sortCodes(periodicCodes,due));
+  const codes=S.machines.map(m=>m.code).filter(code=>cmap[code]&&CAD_ORDER.some(k=>cmap[code][k]));
+  // sort
+  let order=codes.slice();
+  if(S.sort==='alpha') order.sort((a,b)=>mName(a).localeCompare(mName(b)));
+  else if(S.sort==='count'){ const cnt=c=>(cmap[c][S.tf]?cmap[c][S.tf].length:0); order.sort((a,b)=>(cnt(b)-cnt(a))||mName(a).localeCompare(mName(b))); }
 
-  const od=ondemandList();
-  if(od.length){
-    s.appendChild($(`<h2 class="sec pad">${t('home.ondemand')}</h2>`));
-    const codes2=sortCodes([...new Set(od.map(tk=>tk.code))],od);
-    const stack=$('<div class="stack pad"></div>');
-    codes2.forEach(code=>{
-      const m=S.machines.find(x=>x.code===code);
-      const n=od.filter(tk=>tk.code===code).length;
-      const card=$(`<button class="card mcard" style="opacity:.85">
-        <span class="icon">${MICON[code]||'⚙️'}</span>
-        <span><span class="m-name">${pretty(m.name)}</span><span class="m-sub">${n} ${t('card.tasks')}</span></span>
-        <span class="chev">›</span></button>`);
-      card.onclick=()=>{S.machine=code;render();window.scrollTo(0,0);};
-      stack.appendChild(card);
+  const stack=$('<div class="stack pad"></div>');
+  order.forEach(code=>{
+    const m=S.machines.find(x=>x.code===code);
+    let right='';
+    CAD_ORDER.forEach(k=>{
+      const l=cmap[code][k]; if(!l) return;
+      const total=l.length, done=l.filter(isDoneNow).length, isFull=done>=total;
+      const sel=k===S.tf;
+      right+=`<span class="${sel?'sl':'rl'}">${t('cad.'+k)}</span>`+
+             `<span class="${sel?'sv':'rv'}"><span class="c">${done}</span>/${total}</span>`+
+             `<span class="${sel?'sk':'rk'}">${isFull?'✓':''}</span>`;
     });
-    s.appendChild(stack);
-  }
+    const card=$(`<button class="mcard2">
+      <span class="micon">${MICON[code]||'⚙️'}</span>
+      <span class="mleft"><span class="m-name">${pretty(m.name)}</span><span class="m-sub">${m.units?pretty(m.units):''}</span></span>
+      <span class="mright">${right}</span><span class="chev">›</span></button>`);
+    card.onclick=()=>{ S.machine=code; S.machineCadence=cmap[code][S.tf]?S.tf:(CAD_ORDER.find(k=>cmap[code][k])||'Daily'); render(); window.scrollTo(0,0); };
+    stack.appendChild(card);
+  });
+  s.appendChild(stack);
   return s;
 }
 
@@ -813,25 +894,38 @@ function sortControl(){
 function renderMachine(){
   const s=$('<div class="screen"></div>');
   const m=S.machines.find(x=>x.code===S.machine);
-  const due=dueTodayList().filter(tk=>tk.code===S.machine);
-  const od=ondemandList().filter(tk=>tk.code===S.machine);
-  const list=[...due,...od];
-  s.appendChild($(`<div class="card" style="margin:16px;border-radius:16px">
-    <div class="mhead"><div style="font-weight:800;font-size:1.1rem">${pretty(m.name)}</div>
+  const buckets={};
+  S.tasks.forEach(tk=>{ if(tk.code!==S.machine)return; const c=cadenceOf(tk.freq); (buckets[c]=buckets[c]||[]).push(tk); });
+  const cads=[...CAD_ORDER,'AsNeeded'].filter(k=>buckets[k]);
+  if(!cads.includes(S.machineCadence)) S.machineCadence=cads[0]||'Daily';
+
+  s.appendChild($(`<div class="card" style="margin:16px 16px 0;border-radius:16px 16px 0 0">
+    <div class="mhead" style="border-bottom:none;padding-bottom:6px"><div style="font-weight:800;font-size:1.1rem">${pretty(m.name)}</div>
     <div class="units">${m.units?pretty(m.units):''}</div></div>
-    <div id="tasklist"></div></div>`));
-  const host=s.querySelector('#tasklist');
-  const groups={};
-  list.forEach(tk=>{(groups[tk.freq]=groups[tk.freq]||[]).push(tk);});
+    <div class="cadchips" id="cadchips"></div></div>`));
+  const chipHost=s.querySelector('#cadchips');
+  cads.forEach(k=>{
+    const done=k==='AsNeeded'?null:buckets[k].filter(isDoneNow).length;
+    const c=$(`<button class="cadchip ${S.machineCadence===k?'on':''}">${t('cad.'+k)}${done!=null?` <span class="cc">${done}/${buckets[k].length}</span>`:''}</button>`);
+    c.onclick=()=>{S.machineCadence=k;render();};
+    chipHost.appendChild(c);
+  });
+
+  const listCard=$('<div class="card" style="margin:0 16px 16px;border-radius:0 0 16px 16px;border-top:none"><div id="tasklist"></div></div>');
+  s.appendChild(listCard);
+  const host=listCard.querySelector('#tasklist');
+  const list=buckets[S.machineCadence]||[];
+  const groups={}; list.forEach(tk=>{(groups[tk.freq]=groups[tk.freq]||[]).push(tk);});
   const order=[...FREQ_ORDER,...ONDEMAND];
   const wd=S.weekday, friFlag=(wd==='Fri'||wd==='Sat'||wd==='Sun');
+  const multi=Object.keys(groups).length>1;
   Object.keys(groups).sort((a,b)=>order.indexOf(a)-order.indexOf(b)).forEach(f=>{
     const showFlag = f==='Weekly'&&friFlag&&groups[f].some(tk=>!isDoneNow(tk));
-    const g=$(`<div class="fgroup"><div class="flabel">${t('freq.'+f)!=='freq.'+f?t('freq.'+f):f}${showFlag?`<span class="flag-fri">⚑ ${t('flag.friday')}</span>`:''}</div></div>`);
+    const showLbl = multi || showFlag;
+    const g=$(`<div class="fgroup">${showLbl?`<div class="flabel">${multi?(t('freq.'+f)!=='freq.'+f?t('freq.'+f):f):''}${showFlag?`<span class="flag-fri">⚑ ${t('flag.friday')}</span>`:''}</div>`:''}</div>`);
     groups[f].forEach(tk=>{
       const d=isDoneNow(tk);
       const doneToday=S.todayDone[tk.id];
-      const mine=doneToday&&doneToday.byId===S.me.id;
       let signed='';
       if(doneToday) signed=`${t('card.signed')} ${doneToday.by}${doneToday.atStr?' · '+doneToday.atStr:''}`;
       else if(d&&d.date) signed=`${t('card.signed')} ${(S.peopleById[d.byId]||{}).name||d.byId} · ${d.date.slice(5)}`;
@@ -850,7 +944,7 @@ function renderMachine(){
     });
     host.appendChild(g);
   });
-  const open=due.filter(tk=>!isDoneNow(tk));
+  const open=list.filter(tk=>!isDoneNow(tk));
   if(open.length){
     const btn=$(`<button class="markall">${t('task.markdone')} (${open.length})</button>`);
     btn.onclick=async()=>{ for(const tk of open) await checkOff(tk); };
@@ -1065,40 +1159,69 @@ function renderIssueDetail(){
     const by=(S.peopleById[i.clearedBy]||{}).name||i.clearedBy;
     s.appendChild($(`<div class="pad"><div class="lock-note" style="color:var(--good)">✓ ${t('iss.clearedBy')} ${by} · ${fmtWhen(i.clearedAt)}</div></div>`));
   }
+  if(S.me&&S.me.canClear){
+    const actions=$('<div class="pad" style="display:flex;gap:10px;margin-top:12px"></div>');
+    const ed=$(`<button class="btn-ghost" style="flex:1;margin-top:0;background:var(--gold-soft);color:var(--gold-deep)">✏️ ${t('iss.edit')}</button>`);
+    ed.onclick=()=>issueSheet({editIssue:i});
+    const del=$(`<button class="btn-ghost" style="flex:1;margin-top:0;background:var(--bad-soft);color:var(--bad)">🗑 ${t('iss.delete')}</button>`);
+    del.onclick=()=>confirmDeleteIssue(i);
+    actions.appendChild(ed); actions.appendChild(del);
+    s.appendChild(actions);
+  }
   return s;
+}
+function confirmDeleteIssue(i){
+  const bg=$('<div class="sheet-bg"></div>');
+  const sheet=$(`<div class="sheet"><h3>🗑 ${t('iss.delete')}</h3>
+    <div class="sub">${t('iss.deleteConfirm')}</div>
+    <button class="btn-primary" style="background:var(--bad)" data-del>${t('iss.delete')}</button>
+    <button class="btn-ghost" data-cancel>${t('task.close')}</button></div>`);
+  sheet.querySelector('[data-del]').onclick=async()=>{
+    closeModal();
+    try{ await deleteDoc(doc(db,'issues',i.iid));
+      S.viewIssue=null; if(notesUnsub){notesUnsub();notesUnsub=null;} S.notesFor=null;
+      render(); toast(t('iss.deleted'));
+    }catch(e){ writeFail(e); }
+  };
+  sheet.querySelector('[data-cancel]').onclick=closeModal;
+  bg.onclick=(e)=>{if(e.target===bg)closeModal();};
+  bg.appendChild(sheet); modalHost.innerHTML=''; modalHost.appendChild(bg);
 }
 
 function issueSheet(opts){
-  const fixedMachine=!!opts.machineCode;
+  const editing=!!opts.editIssue, e=opts.editIssue;
+  const fixedMachine=!editing && !!opts.machineCode;
+  const curMachine = editing ? (e.machineCode||'OTHER') : '';
   const sorted=S.machines.slice().sort((a,b)=>pretty(a.name).localeCompare(pretty(b.name)));
   const bg=$('<div class="sheet-bg"></div>');
   const sheet=$(`<div class="sheet">
-    <h3>${t('issue.title')}</h3>
-    ${opts.taskLabel?`<div class="sub">${opts.taskId} · ${opts.taskLabel}</div>`:`<div class="sub">${shopSub()}</div>`}
+    <h3>${editing?t('iss.editTitle'):t('issue.title')}</h3>
+    ${(!editing&&opts.taskLabel)?`<div class="sub">${opts.taskId} · ${opts.taskLabel}</div>`:`<div class="sub">${shopSub()}</div>`}
     ${fixedMachine?'':`<div class="field-lbl">${t('iss.whichMachine')}</div>
-      <select class="selbox" id="mach">${sorted.map(mm=>`<option value="${mm.code}">${pretty(mm.name)}</option>`).join('')}<option value="OTHER">${t('iss.other')}</option></select>`}
+      <select class="selbox" id="mach">${sorted.map(mm=>`<option value="${mm.code}" ${curMachine===mm.code?'selected':''}>${pretty(mm.name)}</option>`).join('')}<option value="OTHER" ${curMachine==='OTHER'?'selected':''}>${t('iss.other')}</option></select>`}
     <div id="unitWrap"></div>
     <div class="field-lbl">${t('issue.how')}</div>
     <button class="opt urgent" data-u="1"><span class="oi">⚠️</span>${t('issue.urgent')}</button>
     <button class="opt" data-u="0"><span class="oi">📝</span>${t('iss.normalFull')}</button>
     <div class="field-lbl">${t('iss.condition')}</div>
     <div class="seg" id="cond">
-      <button data-c="usable" class="on">${t('iss.usable')}</button>
-      <button data-c="unusable">${t('iss.unusable')}</button></div>
-    <textarea class="note" placeholder="${t('issue.note')}"></textarea>
-    <button class="btn-primary" data-send>${opts.taskLabel?t('issue.send'):t('iss.create')}</button>
+      <button data-c="usable" class="${(editing?e.usable:'usable')!=='unusable'?'on':''}">${t('iss.usable')}</button>
+      <button data-c="unusable" class="${editing&&e.usable==='unusable'?'on bad':''}">${t('iss.unusable')}</button></div>
+    <textarea class="note" placeholder="${t('issue.note')}">${editing?(e.note||''):''}</textarea>
+    <button class="btn-primary" data-send>${editing?t('iss.save'):(opts.taskLabel?t('issue.send'):t('iss.create'))}</button>
     <button class="btn-ghost" data-close>${t('task.close')}</button></div>`);
-  let urgent=false, cond='usable';
+  let urgent=editing?!!e.urgent:false, cond=editing?(e.usable||'usable'):'usable';
   const unitWrap=sheet.querySelector('#unitWrap');
-  function fillUnits(code){
+  function fillUnits(code,pre){
     const units=unitList(code);
     if(!units.length){unitWrap.innerHTML='';return;}
     unitWrap.innerHTML=`<div class="field-lbl">${t('iss.whichUnit')}</div>
-      <select class="selbox" id="unit"><option value="">${t('iss.unitAny')}</option>${units.map(u=>`<option value="${u}">${u}</option>`).join('')}</select>`;
+      <select class="selbox" id="unit"><option value="">${t('iss.unitAny')}</option>${units.map(u=>`<option value="${u}" ${pre===u?'selected':''}>${u}</option>`).join('')}</select>`;
   }
-  fillUnits(fixedMachine?opts.machineCode:(sheet.querySelector('#mach')&&sheet.querySelector('#mach').value));
+  fillUnits(fixedMachine?opts.machineCode:(sheet.querySelector('#mach')&&sheet.querySelector('#mach').value), editing?e.unit:'');
   const machSel=sheet.querySelector('#mach');
-  if(machSel) machSel.onchange=()=>fillUnits(machSel.value);
+  if(machSel) machSel.onchange=()=>fillUnits(machSel.value,'');
+  if(editing){ const ub=sheet.querySelector(`[data-u="${e.urgent?1:0}"]`); if(ub) ub.style.outline='3px solid '+(e.urgent?'var(--urgent)':'var(--gold)'); }
   sheet.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>{
     urgent=b.dataset.u==='1';
     sheet.querySelectorAll('[data-u]').forEach(x=>x.style.outline='');
@@ -1109,19 +1232,26 @@ function issueSheet(opts){
     sheet.querySelectorAll('#cond button').forEach(x=>x.classList.remove('on','bad'));
     b.classList.add('on'); if(cond==='unusable')b.classList.add('bad');
   });
-  sheet.querySelector('[data-send]').onclick=()=>{
+  sheet.querySelector('[data-send]').onclick=async()=>{
     const note=sheet.querySelector('.note').value.trim();
-    const machineCode=fixedMachine?opts.machineCode:sheet.querySelector('#mach').value;
+    const machineCode=fixedMachine?opts.machineCode:(sheet.querySelector('#mach')?sheet.querySelector('#mach').value:(editing?e.machineCode:''));
     const unitSel=sheet.querySelector('#unit');
-    const data={machineCode,urgent,usable:cond,note};
-    data.machineName = machineCode==='OTHER' ? null : mName(machineCode);
-    if(unitSel&&unitSel.value)data.unit=unitSel.value;
-    if(opts.taskId)data.taskId=opts.taskId;
-    createIssue(data);
-    closeModal(); toast(t('issue.sent'));
+    const unit=(unitSel&&unitSel.value)?unitSel.value:null;
+    if(editing){
+      const upd={machineCode, machineName:(machineCode==='OTHER'?null:mName(machineCode)), urgent, usable:cond, note, unit: unit?unit:deleteField()};
+      closeModal();
+      try{ await updateDoc(doc(db,'issues',e.iid), upd); toast(t('iss.saved')); }catch(err){ writeFail(err); }
+    } else {
+      const data={machineCode,urgent,usable:cond,note};
+      data.machineName = machineCode==='OTHER' ? null : mName(machineCode);
+      if(unit)data.unit=unit;
+      if(opts.taskId)data.taskId=opts.taskId;
+      createIssue(data);
+      closeModal(); toast(t('issue.sent'));
+    }
   };
   sheet.querySelector('[data-close]').onclick=closeModal;
-  bg.onclick=(e)=>{if(e.target===bg)closeModal();};
+  bg.onclick=(ev)=>{if(ev.target===bg)closeModal();};
   bg.appendChild(sheet); modalHost.innerHTML=''; modalHost.appendChild(bg);
 }
 function closeModal(){ modalHost.innerHTML=''; }
