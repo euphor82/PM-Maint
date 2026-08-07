@@ -356,7 +356,7 @@ const EXTRA = {
   "cal.dayNothing":{en:"Nothing recorded this day.",es:"Nada registrado este día."},
   "iss.head":{en:"Issues",es:"Problemas"},
   "iss.new":{en:"+ New",es:"+ Nuevo"},
-  "iss.priority":{en:"Priority — machine down",es:"Prioridad — máquina fuera de servicio"},
+  "iss.priority":{en:"Priority — urgent or down",es:"Prioridad — urgente o fuera de servicio"},
   "iss.open":{en:"Open",es:"Abiertos"},
   "iss.cleared":{en:"Cleared",es:"Resueltos"},
   "iss.none":{en:"No issues right now.",es:"No hay problemas ahora."},
@@ -390,6 +390,15 @@ const EXTRA = {
   "iss.delete":{en:"Delete",es:"Eliminar"},
   "iss.deleteConfirm":{en:"Delete this issue permanently? This can't be undone.",es:"¿Eliminar este problema permanentemente? No se puede deshacer."},
   "iss.deleted":{en:"Issue deleted.",es:"Problema eliminado."},
+  "iss.reopen":{en:"Reopen",es:"Reabrir"},
+  "iss.reopenedAction":{en:"reopened this issue",es:"reabrió el problema"},
+  "iss.editedLog":{en:"Edited",es:"Editado"},
+  "iss.chgUrgentOn":{en:"marked urgent",es:"marcó urgente"},
+  "iss.chgUrgentOff":{en:"marked non-urgent",es:"marcó no urgente"},
+  "iss.chgMachine":{en:"changed machine to",es:"cambió la máquina a"},
+  "iss.chgUnit":{en:"changed unit to",es:"cambió la unidad a"},
+  "iss.chgUnitClear":{en:"cleared the unit",es:"quitó la unidad"},
+  "iss.chgNote":{en:"updated the note",es:"actualizó la nota"},
   "set.title":{en:"Settings",es:"Ajustes"},
   "set.signedin":{en:"Signed in as",es:"Sesión de"},
   "set.notif":{en:"Notify my phone when…",es:"Avisar a mi teléfono cuando…"},
@@ -700,6 +709,12 @@ async function setUsable(issue,val){
   try{
     await updateDoc(doc(db,'issues',issue.iid),{usable:val});
     addIssueNote(issue.iid, t(val==='unusable'?'iss.markdown':'iss.markup'));
+  }catch(e){ writeFail(e); }
+}
+async function reopenIssue(issue){
+  try{
+    await updateDoc(doc(db,'issues',issue.iid),{status:'open',clearedBy:deleteField(),clearedAt:deleteField()});
+    addIssueNote(issue.iid, t('iss.reopenedAction'));
   }catch(e){ writeFail(e); }
 }
 async function clearIssue(issue){
@@ -1076,8 +1091,9 @@ function renderIssues(){
   const bar=$(`<div class="issbar"><div class="h">${t('iss.head')}</div><button class="newiss">${t('iss.new')}</button></div>`);
   bar.querySelector('.newiss').onclick=()=>issueSheet({});
   s.appendChild(bar);
-  const prio=S.issues.filter(i=>i.status==='open'&&i.usable==='unusable');
-  const open=S.issues.filter(i=>i.status==='open'&&i.usable!=='unusable');
+  const isPrio=i=>i.status==='open'&&(i.urgent||i.usable==='unusable');
+  const prio=S.issues.filter(isPrio);
+  const open=S.issues.filter(i=>i.status==='open'&&!isPrio(i));
   const cleared=S.issues.filter(i=>i.status==='cleared').slice(0,30);
   function card(i){
     const cls=i.status==='cleared'?'cleared':(i.usable==='unusable'?'down':'');
@@ -1158,6 +1174,12 @@ function renderIssueDetail(){
   } else {
     const by=(S.peopleById[i.clearedBy]||{}).name||i.clearedBy;
     s.appendChild($(`<div class="pad"><div class="lock-note" style="color:var(--good)">✓ ${t('iss.clearedBy')} ${by} · ${fmtWhen(i.clearedAt)}</div></div>`));
+    if(S.me&&S.me.canClear){
+      const rw=$('<div class="pad" style="margin-top:8px"></div>');
+      const rb=$(`<button class="btn-ghost" style="background:var(--due-soft);color:var(--due);margin-top:0">↩ ${t('iss.reopen')}</button>`);
+      rb.onclick=()=>reopenIssue(i);
+      rw.appendChild(rb); s.appendChild(rw);
+    }
   }
   if(S.me&&S.me.canClear){
     const actions=$('<div class="pad" style="display:flex;gap:10px;margin-top:12px"></div>');
@@ -1240,7 +1262,18 @@ function issueSheet(opts){
     if(editing){
       const upd={machineCode, machineName:(machineCode==='OTHER'?null:mName(machineCode)), urgent, usable:cond, note, unit: unit?unit:deleteField()};
       closeModal();
-      try{ await updateDoc(doc(db,'issues',e.iid), upd); toast(t('iss.saved')); }catch(err){ writeFail(err); }
+      try{
+        await updateDoc(doc(db,'issues',e.iid), upd);
+        const chg=[];
+        if(!!e.urgent!==urgent) chg.push(urgent?t('iss.chgUrgentOn'):t('iss.chgUrgentOff'));
+        if((e.usable||'usable')!==cond) chg.push(t(cond==='unusable'?'iss.markdown':'iss.markup'));
+        if((e.machineCode||'')!==machineCode) chg.push(t('iss.chgMachine')+' '+mName(machineCode));
+        const oldU=e.unit||'', newU=unit||'';
+        if(oldU!==newU) chg.push(newU?(t('iss.chgUnit')+' '+newU):t('iss.chgUnitClear'));
+        if((e.note||'')!==note) chg.push(t('iss.chgNote'));
+        if(chg.length) addIssueNote(e.iid, t('iss.editedLog')+': '+chg.join(', '));
+        toast(t('iss.saved'));
+      }catch(err){ writeFail(err); }
     } else {
       const data={machineCode,urgent,usable:cond,note};
       data.machineName = machineCode==='OTHER' ? null : mName(machineCode);
