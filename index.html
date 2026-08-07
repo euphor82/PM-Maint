@@ -7,6 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PM Check-Off">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <title>PM Check-Off — Paul Morrell</title>
 <style>
 :root{
@@ -89,6 +93,11 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .mcard .frac .done-n{color:var(--good)}
 .mcard .count-lbl{display:block;font-size:.64rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:5px}
 .chev{color:var(--muted);font-size:1.2rem;margin-left:6px}
+.sortrow{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:12px}
+.sortlbl{font-size:.72rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.sortsel{appearance:none;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 30px 8px 14px;font-size:.82rem;font-weight:700;color:var(--ink);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23837a6c' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right 12px center}
 .allclear{padding:28px 16px;text-align:center;color:var(--good);font-weight:700}
 .allclear .big{font-size:2.2rem;display:block;margin-bottom:6px}
 
@@ -143,7 +152,13 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
   border-top:1px solid var(--line);display:flex;max-width:520px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{flex:1;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:.7rem;font-weight:700;position:relative}
 .nav button.on{color:var(--gold-deep)}
-.nav .ni{font-size:1.35rem;line-height:1}
+.nav .ni{font-size:1.3rem;line-height:1}
+.nav button{font-size:.66rem;padding-left:2px;padding-right:2px}
+.hitem{display:flex;gap:12px;align-items:flex-start;padding:12px 4px;border-top:1px solid var(--line);font-size:.92rem}
+.hitem:first-child{border-top:none}
+.hicon{font-size:1.05rem;width:20px;text-align:center;flex:none}
+.misstog{background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:.78rem;font-weight:700;color:var(--muted)}
+.misstog.on{border-color:var(--bad);color:var(--bad);background:var(--bad-soft)}
 .badge{position:absolute;top:4px;right:calc(50% - 26px);min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff;font-size:.66rem;font-weight:800;display:grid;place-items:center;line-height:1}
 
 .sheet-bg{position:fixed;inset:0;background:rgba(20,18,12,.45);z-index:40;display:flex;align-items:flex-end;justify-content:center}
@@ -252,6 +267,21 @@ const EXTRA = {
   "signout":{en:"Sign out",es:"Salir"},
   "home.ondemand":{en:"As needed / by load",es:"Cuando se necesite / por carga"},
   "card.completed":{en:"Completed",es:"Completadas"},
+  "sort.label":{en:"Sort",es:"Ordenar"},
+  "sort.default":{en:"Sheet order",es:"Orden de hoja"},
+  "sort.alpha":{en:"A–Z",es:"A–Z"},
+  "sort.count":{en:"Most tasks",es:"Más tareas"},
+  "nav.history":{en:"History",es:"Historial"},
+  "nav.shift":{en:"Shift",es:"Turno"},
+  "hist.title":{en:"Task history",es:"Historial de tareas"},
+  "hist.sub":{en:"See who signed off a task, and when.",es:"Ve quién firmó una tarea y cuándo."},
+  "hist.search":{en:"Search Task ID or text…",es:"Buscar ID o texto…"},
+  "hist.allmachines":{en:"Choose a machine…",es:"Elige una máquina…"},
+  "hist.pick":{en:"Pick a machine or search to find a task.",es:"Elige una máquina o busca para encontrar una tarea."},
+  "hist.notasks":{en:"No matching tasks.",es:"No hay tareas coincidentes."},
+  "hist.none":{en:"No history yet for this task.",es:"Aún no hay historial para esta tarea."},
+  "hist.undone":{en:"Un-done",es:"Deshecho"},
+  "hist.showmisses":{en:"Show misses",es:"Mostrar omitidas"},
   "cal.filterMachine":{en:"All machines",es:"Todas las máquinas"},
   "cal.filterFreq":{en:"All frequencies",es:"Todas las frecuencias"},
   "cal.filterStatus":{en:"All status",es:"Todo estado"},
@@ -358,6 +388,8 @@ const S = {
   lastDone:{},                   // state/lastDone.byTask
   issues:[], notes:[], notesFor:null,
   screen:'signin', tab:'today', machine:null, viewIssue:null,
+  sort:(localStorage.getItem('pmSort')||'default'),
+  histMachine:'', histSearch:'', histTask:null, histEvents:[], histLoading:false, histMisses:false,
   pinFor:null, pinBuf:'', pinErr:'', pinBusy:false,
   calMonth:null, fMachine:'', fFreq:'', fStatus:'', calDay:null,
   monthDays:{}, monthLoaded:'',
@@ -397,6 +429,15 @@ function dueTodayList(){
   });
 }
 function ondemandList(){ return S.tasks.filter(tk=>ONDEMAND.has(tk.freq)); }
+function sortCodes(codes, pool){
+  const arr=codes.slice();
+  if(S.sort==='alpha') arr.sort((a,b)=>mName(a).localeCompare(mName(b)));
+  else if(S.sort==='count'){
+    const cnt={}; codes.forEach(c=>cnt[c]=pool.filter(tk=>tk.code===c).length);
+    arr.sort((a,b)=>(cnt[b]-cnt[a])||mName(a).localeCompare(mName(b)));
+  }
+  return arr; // 'default' = sheet order (unchanged)
+}
 function isDoneNow(task){
   if(S.todayDone[task.id]) return S.todayDone[task.id];
   const f=task.freq, ld=S.lastDone[task.id];
@@ -560,6 +601,7 @@ async function checkOff(task){
   b.set(doc(db,'checkoffs',dk+'_'+id),{date:dk,taskId:id,byId:S.me.id,by:S.me.name,at:serverTimestamp()});
   b.set(doc(db,'days',dk),{done:{[id]:{byId:S.me.id,by:S.me.name,atStr:nowHM()}}},{merge:true});
   b.set(doc(db,'state','lastDone'),{byTask:{[id]:{date:dk,byId:S.me.id}}},{merge:true});
+  b.set(doc(collection(db,'events')),{taskId:id,machineCode:task.code,action:'done',byId:S.me.id,by:S.me.name,date:dk,at:serverTimestamp()});
   try{ await b.commit(); }catch(e){ writeFail(e); }
 }
 async function unCheck(task){
@@ -568,6 +610,7 @@ async function unCheck(task){
   b.delete(doc(db,'checkoffs',dk+'_'+id));
   b.set(doc(db,'days',dk),{done:{[id]:deleteField()}},{merge:true});
   b.set(doc(db,'state','lastDone'),{byTask:{[id]:deleteField()}},{merge:true});
+  b.set(doc(collection(db,'events')),{taskId:id,machineCode:task.code,action:'undone',byId:S.me.id,by:S.me.name,date:dk,at:serverTimestamp()});
   try{ await b.commit(); }catch(e){ writeFail(e); }
 }
 function toggleCheck(task){
@@ -615,10 +658,11 @@ function render(){
   if(S.screen==='signin'){ appEl.innerHTML=''; appEl.appendChild(renderSignin()); return; }
   appEl.innerHTML='';
   if(S.offline) appEl.appendChild($(`<div class="offline">${t('conn.offline')}</div>`));
-  const inIssueDetail = S.tab==='issues' && S.viewIssue!=null;
-  if(!inIssueDetail) appEl.appendChild(renderTop());
+  const inSubDetail = (S.tab==='issues'&&S.viewIssue!=null) || (S.tab==='history'&&S.histTask!=null);
+  if(!inSubDetail) appEl.appendChild(renderTop());
   if(S.tab==='today') appEl.appendChild(S.machine?renderMachine():renderToday());
   else if(S.tab==='calendar'){ loadMonth(S.calMonth); appEl.appendChild(renderCalendar()); }
+  else if(S.tab==='history') appEl.appendChild(renderHistory());
   else if(S.tab==='issues') appEl.appendChild(S.viewIssue!=null?renderIssueDetail():renderIssues());
   else if(S.tab==='summary') appEl.appendChild(renderSummary());
   appEl.appendChild(renderNav());
@@ -712,6 +756,7 @@ function renderToday(){
     <div class="muted" style="font-size:.85rem">${dateStr}</div></div>`));
   s.appendChild($(`<div class="pad" style="font-size:.95rem;margin-top:4px"><span style="font-weight:800;color:var(--good)">${doneCount}</span><span style="font-weight:800">/${due.length}</span> <span class="muted">${t('card.completed').toLowerCase()} · ${due.length} ${t('card.tasks')}</span></div>`));
   if(due.length&&doneCount===due.length) s.appendChild($(`<div class="allclear"><span class="big">✓</span>${t('home.alldone')}</div>`));
+  s.appendChild(sortControl());
 
   function machineList(title,list){
     if(!list.length)return;
@@ -731,13 +776,13 @@ function renderToday(){
     });
     s.appendChild(stack);
   }
-  machineList(t('home.daily'),dailyCodes);
-  machineList(t('home.weekly'),periodicCodes);
+  machineList(t('home.daily'),sortCodes(dailyCodes,due));
+  machineList(t('home.weekly'),sortCodes(periodicCodes,due));
 
   const od=ondemandList();
   if(od.length){
     s.appendChild($(`<h2 class="sec pad">${t('home.ondemand')}</h2>`));
-    const codes2=[...new Set(od.map(tk=>tk.code))];
+    const codes2=sortCodes([...new Set(od.map(tk=>tk.code))],od);
     const stack=$('<div class="stack pad"></div>');
     codes2.forEach(code=>{
       const m=S.machines.find(x=>x.code===code);
@@ -754,6 +799,17 @@ function renderToday(){
   return s;
 }
 
+function sortControl(){
+  const wrap=$(`<div class="pad sortrow">
+    <span class="sortlbl">${t('sort.label')}</span>
+    <select class="sortsel" id="sortsel">
+      <option value="default" ${S.sort==='default'?'selected':''}>${t('sort.default')}</option>
+      <option value="alpha" ${S.sort==='alpha'?'selected':''}>${t('sort.alpha')}</option>
+      <option value="count" ${S.sort==='count'?'selected':''}>${t('sort.count')}</option>
+    </select></div>`);
+  wrap.querySelector('#sortsel').onchange=(e)=>{S.sort=e.target.value;localStorage.setItem('pmSort',S.sort);render();window.scrollTo(0,0);};
+  return wrap;
+}
 function renderMachine(){
   const s=$('<div class="screen"></div>');
   const m=S.machines.find(x=>x.code===S.machine);
@@ -1143,15 +1199,122 @@ function renderSummary(){
   return s;
 }
 
+/* ---------- history ---------- */
+function fmtHM(ts){ if(!ts)return''; const d=ts.toDate?ts.toDate():new Date(ts); return new Intl.DateTimeFormat(lang==='es'?'es':'en-US',{timeZone:TZ,hour:'numeric',minute:'2-digit'}).format(d); }
+async function loadTaskHistory(id){
+  S.histLoading=true; S.histEvents=[]; render();
+  try{
+    const qs=await getDocs(query(collection(db,'events'),where('taskId','==',id)));
+    const evs=[]; qs.forEach(d=>evs.push(d.data({serverTimestamps:'estimate'})));
+    evs.sort((a,b)=>{const ta=a.at&&a.at.toMillis?a.at.toMillis():0,tb=b.at&&b.at.toMillis?b.at.toMillis():0;return tb-ta;});
+    S.histEvents=evs;
+  }catch(e){ toast(t('err.write')); }
+  S.histLoading=false; render();
+}
+function windowLabel(f,k){
+  const d=new Date(keyToUTC(k)), loc=lang==='es'?'es':'en';
+  if(f==='Monthly') return d.toLocaleDateString(loc,{month:'long',year:'numeric',timeZone:'UTC'});
+  if(f==='Quarterly') return 'Q'+Math.ceil((d.getUTCMonth()+1)/3)+' '+d.getUTCFullYear();
+  if(f==='Semi-Annually') return (d.getUTCMonth()<6?'H1':'H2')+' '+d.getUTCFullYear();
+  if(f==='Annually') return ''+d.getUTCFullYear();
+  return (lang==='es'?'semana del ':'week of ')+d.toLocaleDateString(loc,{month:'short',day:'numeric',timeZone:'UTC'});
+}
+function computeMisses(tk){
+  const done=S.histEvents.filter(e=>e.action==='done').map(e=>e.date);
+  if(!done.length||ONDEMAND.has(tk.freq)) return [];
+  const doneSet=new Set(done), f=tk.freq;
+  const start=done.slice().sort()[0];
+  const startDt=new Date(keyToUTC(start)), today=new Date(keyToUTC(S.todayKey));
+  const out=[];
+  if(f==='Daily'||f==='Mon & Thu'){
+    for(let dt=new Date(startDt); dt<today && out.length<120; dt.setUTCDate(dt.getUTCDate()+1)){
+      const k=dt.toISOString().slice(0,10), wd=weekdayOfKey(k);
+      if((f==='Daily'||wd==='Mon'||wd==='Thu') && !doneSet.has(k)) out.push({date:k});
+    }
+  } else {
+    const doneWin=new Set(done.map(d=>windowKey(f,d))), seen=new Set(), curWin=windowKey(f,S.todayKey);
+    for(let dt=new Date(startDt); dt<today && out.length<120; dt.setUTCDate(dt.getUTCDate()+1)){
+      const k=dt.toISOString().slice(0,10), w=windowKey(f,k);
+      if(w && w!==curWin && !seen.has(w)){ seen.add(w); if(!doneWin.has(w)) out.push({date:k,label:windowLabel(f,k)}); }
+    }
+  }
+  return out;
+}
+function renderHistory(){
+  if(S.histTask) return renderHistoryDetail();
+  const s=$('<div class="screen"></div>');
+  s.appendChild($(`<div class="pad" style="margin-top:16px"><div style="font-size:1.35rem;font-weight:800">${t('hist.title')}</div>
+    <div class="muted" style="font-size:.85rem;margin-top:2px">${t('hist.sub')}</div></div>`));
+  const controls=$(`<div class="pad" style="margin-top:14px">
+    <input class="selbox" id="hsearch" placeholder="${t('hist.search')}" value="${S.histSearch}" autocomplete="off" style="margin-bottom:10px">
+    <select class="selbox" id="hmach"><option value="">${t('hist.allmachines')}</option>${S.machines.slice().sort((a,b)=>mName(a.code).localeCompare(mName(b.code))).map(m=>`<option value="${m.code}" ${S.histMachine===m.code?'selected':''}>${pretty(m.name)}</option>`).join('')}</select></div>`);
+  s.appendChild(controls);
+  const listWrap=$('<div id="histlist"></div>'); s.appendChild(listWrap);
+  function drawList(){
+    const q=S.histSearch.trim().toUpperCase();
+    let tasks=S.tasks;
+    if(S.histMachine) tasks=tasks.filter(x=>x.code===S.histMachine);
+    if(q) tasks=tasks.filter(x=>x.id.toUpperCase().includes(q)||taskText(x).toUpperCase().includes(q));
+    const host=document.getElementById('histlist')||listWrap; host.innerHTML='';
+    if(!S.histMachine && !q){ host.appendChild($(`<div class="pad muted" style="margin-top:10px">${t('hist.pick')}</div>`)); return; }
+    if(!tasks.length){ host.appendChild($(`<div class="pad muted" style="margin-top:10px">${t('hist.notasks')}</div>`)); return; }
+    const stack=$('<div class="stack pad" style="margin-top:6px"></div>');
+    tasks.slice(0,80).forEach(tk=>{
+      const row=$(`<button class="card" style="padding:13px 15px;text-align:left;display:flex;gap:10px;align-items:center;border-radius:12px">
+        <span style="flex:1;min-width:0"><span class="t-id" style="font-size:.72rem;color:var(--gold-deep);font-weight:700">${tk.id}</span><br>${taskText(tk)}</span>
+        <span style="color:var(--muted);font-size:1.1rem">›</span></button>`);
+      row.onclick=()=>{ S.histTask=tk.id; loadTaskHistory(tk.id); window.scrollTo(0,0); };
+      stack.appendChild(row);
+    });
+    if(tasks.length>80) stack.appendChild($(`<div class="muted" style="padding:8px 4px">+${tasks.length-80}…</div>`));
+    host.appendChild(stack);
+  }
+  controls.querySelector('#hsearch').oninput=(e)=>{ S.histSearch=e.target.value; drawList(); };
+  controls.querySelector('#hmach').onchange=(e)=>{ S.histMachine=e.target.value; drawList(); };
+  drawList();
+  return s;
+}
+function renderHistoryDetail(){
+  const tk=S.byId[S.histTask];
+  const s=$('<div class="screen"></div>');
+  const head=$(`<div class="topbar"><button class="t-back">‹</button><div class="t-title">${t('hist.title')}<span class="t-sub">${S.histTask}</span></div></div>`);
+  head.querySelector('.t-back').onclick=()=>{S.histTask=null;S.histEvents=[];render();};
+  head.appendChild(langToggle(true));
+  s.appendChild(head);
+  s.appendChild($(`<div class="card" style="margin:16px;border-radius:16px;padding:16px">
+    <div style="font-weight:700">${tk?taskText(tk):S.histTask}</div>
+    <div class="muted" style="font-size:.8rem;margin-top:4px">${tk?mName(tk.code):''}${tk?' · '+(t('freq.'+tk.freq)!=='freq.'+tk.freq?t('freq.'+tk.freq):tk.freq):''}</div></div>`));
+  const tog=$(`<div class="pad" style="display:flex;justify-content:flex-end;margin-bottom:2px"><button class="misstog ${S.histMisses?'on':''}">${S.histMisses?'✓ ':''}${t('hist.showmisses')}</button></div>`);
+  tog.querySelector('button').onclick=()=>{S.histMisses=!S.histMisses;render();};
+  s.appendChild(tog);
+  const wrap=$('<div class="pad"></div>');
+  if(S.histLoading){ wrap.appendChild($(`<div class="loadwrap" style="padding:26px"><div class="spin"></div></div>`)); s.appendChild(wrap); return s; }
+  const items=S.histEvents.map(e=>({kind:e.action,date:e.date,by:e.by,at:e.at}));
+  if(S.histMisses && tk) computeMisses(tk).forEach(m=>items.push({kind:'missed',date:m.date,label:m.label}));
+  items.sort((a,b)=> a.date<b.date?1:a.date>b.date?-1:0);
+  if(!items.length){ wrap.appendChild($(`<div class="muted" style="padding:16px 4px">${t('hist.none')}</div>`)); }
+  else items.slice(0,200).forEach(it=>{
+    let icon,color,label;
+    if(it.kind==='done'){icon='✓';color='var(--good)';label=t('st.done');}
+    else if(it.kind==='undone'){icon='↩';color='var(--muted)';label=t('hist.undone');}
+    else{icon='—';color='var(--bad)';label=t('st.missed');}
+    const when = it.label || new Date(keyToUTC(it.date)).toLocaleDateString(lang==='es'?'es':'en',{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'});
+    wrap.appendChild($(`<div class="hitem"><span class="hicon" style="color:${color}">${icon}</span>
+      <span style="flex:1"><b style="color:${color}">${label}</b> · ${when}${it.by?` <span class="muted">· ${it.by}${it.at?' · '+fmtHM(it.at):''}</span>`:''}</span></div>`));
+  });
+  s.appendChild(wrap);
+  return s;
+}
 function renderNav(){
   const oc=openCount();
   const nav=$(`<div class="nav">
     <button data-tab="today" class="${S.tab==='today'?'on':''}"><span class="ni">☑</span>${t('nav.today')}</button>
+    <button data-tab="history" class="${S.tab==='history'?'on':''}"><span class="ni">🕘</span>${t('nav.history')}</button>
     <button data-tab="calendar" class="${S.tab==='calendar'?'on':''}"><span class="ni">▦</span>${t('nav.calendar')}</button>
     <button data-tab="issues" class="${S.tab==='issues'?'on':''}"><span class="ni">⚑</span>${t('nav.issues')}${oc?`<span class="badge">${oc}</span>`:''}</button>
-    <button data-tab="summary" class="${S.tab==='summary'?'on':''}"><span class="ni">◐</span>${t('summary.title')}</button></div>`);
+    <button data-tab="summary" class="${S.tab==='summary'?'on':''}"><span class="ni">◐</span>${t('nav.shift')}</button></div>`);
   nav.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
-    S.tab=b.dataset.tab;S.machine=null;S.calDay=null;S.viewIssue=null;
+    S.tab=b.dataset.tab;S.machine=null;S.calDay=null;S.viewIssue=null;S.histTask=null;
     if(notesUnsub){notesUnsub();notesUnsub=null;S.notesFor=null;}
     render();window.scrollTo(0,0);});
   return nav;
