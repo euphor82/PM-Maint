@@ -29,7 +29,7 @@ body{background:var(--bg);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   line-height:1.4;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased;overflow:hidden;position:fixed;inset:0;width:100%;height:var(--app-height,100%)}
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
-#app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden}
+#app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden;background:var(--bg)}
 .screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 12px}
 .pad{padding-left:16px;padding-right:16px}
 
@@ -180,8 +180,11 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .dtask:first-child{border-top:none}
 .dtask .dt-m{font-weight:700;font-size:.72rem;color:var(--gold-deep)}
 
-.nav{flex:none;z-index:30;background:var(--card);
+.nav{flex:none;z-index:30;background:var(--card);position:relative;
   border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+/* bleed the nav's background downward: covers any strip below the reported viewport
+   on iOS home-screen apps, so the bar always reads flush with the screen edge */
+.nav::after{content:"";position:absolute;top:100%;left:0;right:0;height:140px;background:inherit}
 .nav button{flex:1;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:.7rem;font-weight:700;position:relative}
 .nav button.on{color:var(--gold-deep)}
 .nav .ni{font-size:1.3rem;line-height:1}
@@ -293,12 +296,15 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
     --due:#cfa658; --due-soft:#37301e; --urgent:#e78e86;
     --shadow:0 1px 2px rgba(0,0,0,.30),0 1px 3px rgba(0,0,0,.40);
   }
-  .nav{background:rgba(30,31,37,.95)}
   .brandrow .logo{background:#f5efe2;border-radius:16px;padding:6px}
   .opt,.note,.selbox,.seg button,.radio,.task .check,.devrow{background:var(--card)}
   .lang{background:rgba(255,255,255,.12)}
   .toast{background:#0f1013}
 }
+/* Installed home-screen app: paint the page canvas in the nav's color so any strip
+   iOS leaves below the reported viewport blends into the bar instead of floating it.
+   (#app carries the real --bg, so the app's look is unchanged.) */
+@media (display-mode: standalone){ body{background:var(--card)} }
 </style>
 </head>
 <body>
@@ -639,18 +645,10 @@ const $=(h)=>{const tpl=document.createElement('template');tpl.innerHTML=h.trim(
 onAuthStateChanged(auth, user=>{
   if(user){ S.uid=user.uid; startListeners(); }
 });
-/* iOS PWA: the home-screen web view is fullscreen, but iOS can report the viewport
-   short by the status-bar + home-indicator insets — the "floating nav" bug. In
-   standalone mode (navigator.standalone is iOS-only) size the app from the real
-   screen instead of the misreported viewport; everywhere else trust innerHeight. */
-function setAppHeight(){
-  let h=window.innerHeight;
-  if(navigator.standalone===true){
-    const portrait=matchMedia('(orientation: portrait)').matches;
-    h=Math.max(h, portrait?Math.max(screen.height,screen.width):Math.min(screen.height,screen.width));
-  }
-  document.documentElement.style.setProperty('--app-height', h+'px');
-}
+/* iOS PWA: size to the reported viewport (never larger — overshooting clips the nav).
+   The leftover strip below, where iOS under-reports, is hidden by the nav's ::after
+   bleed + the standalone canvas color instead of height math. */
+function setAppHeight(){ document.documentElement.style.setProperty('--app-height', window.innerHeight+'px'); }
 setAppHeight();
 window.addEventListener('resize', setAppHeight);
 window.addEventListener('orientationchange', ()=>setTimeout(setAppHeight,120));
