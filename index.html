@@ -27,10 +27,10 @@
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  line-height:1.4;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased}
+  line-height:1.4;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased;overflow:hidden}
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
-#app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;position:relative}
-.screen{flex:1;display:flex;flex-direction:column;padding:0 0 96px}
+#app{max-width:520px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 12px}
 .pad{padding-left:16px;padding-right:16px}
 
 .topbar{position:sticky;top:0;z-index:20;background:var(--charcoal);color:#fff;
@@ -72,13 +72,13 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
   font-size:1.05rem;font-weight:600;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:8px}
 .person .av{width:30px;height:30px;border-radius:999px;background:var(--brand-soft);color:var(--brand-ink);
   display:grid;place-items:center;font-weight:800;font-size:.9rem}
-.pinwrap{max-width:320px;margin:0 auto;text-align:center}
-.dots{display:flex;gap:16px;justify-content:center;margin:22px 0 18px}
-.dot{width:16px;height:16px;border-radius:999px;border:2px solid var(--gold-deep)}
+.pinwrap{max-width:380px;margin:0 auto;text-align:center}
+.dots{display:flex;gap:18px;justify-content:center;margin:24px 0 18px}
+.dot{width:18px;height:18px;border-radius:999px;border:2px solid var(--gold-deep)}
 .dot.on{background:var(--gold-deep)}
 .dot.err{border-color:var(--bad);background:var(--bad)}
-.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.key{height:64px;border-radius:14px;background:var(--card);border:1px solid var(--line);font-size:1.5rem;font-weight:600;box-shadow:var(--shadow)}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.key{height:76px;border-radius:16px;background:var(--card);border:1px solid var(--line);font-size:1.85rem;font-weight:600;box-shadow:var(--shadow)}
 .key.wide{font-size:1rem;font-weight:600;color:var(--muted)}
 .key:disabled{opacity:.4}
 .err-msg{color:var(--bad);font-weight:600;min-height:22px;margin-top:12px;font-size:.95rem}
@@ -163,6 +163,13 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .cell .bars{display:flex;gap:2px;margin-top:auto;flex-wrap:wrap;justify-content:center}
 .cell .bignum{font-weight:800;font-size:1rem;margin-top:2px}
 .cell .cap{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.cell-good{background:var(--good-soft)}
+.cell-bad{background:var(--bad-soft)}
+.cc3{display:flex;flex-direction:column;align-items:center;gap:0;margin-top:1px;line-height:1.15}
+.cc{font-size:.58rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.cc.g{color:var(--good)} .cc.r{color:var(--bad)} .cc.b{color:var(--due)}
+.cc.z{opacity:.22}
+.due-dot{color:var(--gold-deep);font-weight:900;margin-left:1px}
 .dt{width:7px;height:7px;border-radius:2px}
 .dt.done{background:var(--good)} .dt.missed{background:var(--bad)} .dt.due{background:var(--due)}
 .cell.future .bignum{color:var(--due)}
@@ -173,8 +180,8 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .dtask:first-child{border-top:none}
 .dtask .dt-m{font-weight:700;font-size:.72rem;color:var(--gold-deep)}
 
-.nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(255,253,248,.95);backdrop-filter:blur(8px);
-  border-top:1px solid var(--line);display:flex;max-width:520px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
+.nav{flex:none;z-index:30;background:var(--card);
+  border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{flex:1;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:.7rem;font-weight:700;position:relative}
 .nav button.on{color:var(--gold-deep)}
 .nav .ni{font-size:1.3rem;line-height:1}
@@ -223,6 +230,11 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .prio-wrap{margin:0 16px;border:1.5px solid var(--bad);border-radius:16px;overflow:hidden;background:var(--card)}
 .prio-wrap .icard{border-top:1px solid var(--bad-soft)}
 .prio-wrap .icard:first-child{border-top:none}
+.work-h{display:flex;align-items:center;gap:8px;margin:16px 16px 8px;color:var(--due);font-weight:800;font-size:.82rem;letter-spacing:.05em;text-transform:uppercase}
+.work-wrap{margin:0 16px;border:1.5px solid var(--due);border-radius:16px;overflow:hidden;background:var(--card)}
+.work-wrap .icard{border-top:1px solid var(--due-soft)}
+.work-wrap .icard:first-child{border-top:none}
+.work-wrap .icard .idot{background:var(--due)}
 .iss-detail .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);font-size:.95rem}
 .iss-detail .row .k{color:var(--muted)}
 .prog{border-top:1px solid var(--line);padding:12px 0}
@@ -248,6 +260,23 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .radio .rtag{display:inline-block;font-size:.62rem;font-weight:800;color:var(--gold-deep);background:#fff;border:1px solid var(--gold);padding:2px 7px;border-radius:999px;margin-top:5px;text-transform:uppercase;letter-spacing:.04em}
 .setnote{color:var(--muted);font-size:.8rem;text-align:center;margin:14px 4px 2px}
 .offline{background:var(--due-soft);color:var(--due);font-size:.75rem;font-weight:700;text-align:center;padding:6px}
+.duebadge{font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.duebadge.overdue{background:var(--bad-soft);color:var(--bad)}
+.duebadge.soon{background:var(--due-soft);color:var(--due)}
+.duebadge.later{background:var(--gold-soft);color:var(--gold-deep)}
+.duesoon-card{display:flex;align-items:center;gap:12px;padding:12px 14px;width:100%;text-align:left}
+.duesoon-card .dtxt{flex:1;min-width:0}
+.duesoon-card .dtxt .dt-name{font-size:.9rem;font-weight:600;line-height:1.2}
+.duesoon-card .dtxt .dt-m{font-size:.72rem;color:var(--muted);margin-top:2px}
+.photogrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.photothumb{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--card)}
+.photothumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photothumb .rm{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:999px;background:rgba(20,18,12,.6);color:#fff;font-size:.8rem;display:grid;place-items:center;line-height:1}
+.addphoto{border:1.5px dashed var(--line);border-radius:10px;aspect-ratio:1;display:grid;place-items:center;color:var(--gold-deep);font-size:.7rem;font-weight:700;text-align:center;background:var(--card);gap:2px}
+.addphoto .pi{font-size:1.4rem}
+.photoview{position:fixed;inset:0;background:rgba(10,9,6,.92);z-index:60;display:grid;place-items:center;padding:16px}
+.photoview img{max-width:100%;max-height:88vh;border-radius:8px}
+.photoview .x{position:absolute;top:calc(env(safe-area-inset-top) + 12px);right:16px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.15);color:#fff;font-size:1.4rem}
 
 /* ===== dark mode (follows the phone's setting) ===== */
 @media (prefers-color-scheme:dark){
@@ -332,6 +361,18 @@ const EXTRA = {
   "cad.AsNeeded":{en:"As needed",es:"Cuando"},
   "home.machines":{en:"Machines",es:"Máquinas"},
   "home.period":{en:"done this period",es:"hechas este periodo"},
+  "home.duesoon":{en:"Due soon",es:"Próximas a vencer"},
+  "due.overdue":{en:"Overdue",es:"Vencida"},
+  "due.today":{en:"Due today",es:"Vence hoy"},
+  "due.in":{en:"Due",es:"Vence"},
+  "set.dueTitle":{en:"Task due dates",es:"Fechas de vencimiento"},
+  "set.dueWeek":{en:"Heads-up 1 week before",es:"Aviso 1 semana antes"},
+  "set.dueDay":{en:"Reminder on the due day",es:"Recordatorio el día de vencimiento"},
+  "set.dueOverdue":{en:"Overdue reminders",es:"Recordatorios de vencidas"},
+  "set.ovOff":{en:"Off",es:"Desactivado"},
+  "set.ovDaily":{en:"Daily",es:"Diario"},
+  "set.ov3":{en:"Every 3 days",es:"Cada 3 días"},
+  "set.ovWeekly":{en:"Weekly",es:"Semanal"},
   "nav.history":{en:"History",es:"Historial"},
   "nav.shift":{en:"Shift",es:"Turno"},
   "hist.title":{en:"Task history",es:"Historial de tareas"},
@@ -346,6 +387,9 @@ const EXTRA = {
   "cal.filterMachine":{en:"All machines",es:"Todas las máquinas"},
   "cal.filterFreq":{en:"All frequencies",es:"Todas las frecuencias"},
   "cal.filterStatus":{en:"All status",es:"Todo estado"},
+  "cal.filterPerson":{en:"Anyone",es:"Cualquiera"},
+  "cal.roundsPct":{en:"of daily rounds done",es:"de rondas diarias hechas"},
+  "cal.missedDays":{en:"days with misses",es:"días con faltas"},
   "cal.due":{en:"due",es:"pend."},
   "st.done":{en:"Done",es:"Hecho"},
   "st.missed":{en:"Missed",es:"Omitida"},
@@ -357,6 +401,8 @@ const EXTRA = {
   "iss.head":{en:"Issues",es:"Problemas"},
   "iss.new":{en:"+ New",es:"+ Nuevo"},
   "iss.priority":{en:"Priority — urgent or down",es:"Prioridad — urgente o fuera de servicio"},
+  "iss.tierDown":{en:"Machine Down",es:"Máquina fuera de servicio"},
+  "iss.tierWorking":{en:"Machine Working",es:"Máquina funcionando"},
   "iss.open":{en:"Open",es:"Abiertos"},
   "iss.cleared":{en:"Cleared",es:"Resueltos"},
   "iss.none":{en:"No issues right now.",es:"No hay problemas ahora."},
@@ -399,6 +445,12 @@ const EXTRA = {
   "iss.chgUnit":{en:"changed unit to",es:"cambió la unidad a"},
   "iss.chgUnitClear":{en:"cleared the unit",es:"quitó la unidad"},
   "iss.chgNote":{en:"updated the note",es:"actualizó la nota"},
+  "iss.photos":{en:"Photos",es:"Fotos"},
+  "iss.addPhoto":{en:"Add photo",es:"Agregar foto"},
+  "iss.photoMax":{en:"Up to 4 photos per issue.",es:"Hasta 4 fotos por problema."},
+  "iss.photoErr":{en:"Couldn't add that photo — try again.",es:"No se pudo agregar la foto — intenta otra vez."},
+  "iss.photoBusy":{en:"Adding photo…",es:"Agregando foto…"},
+  "iss.rmPhoto":{en:"Remove this photo?",es:"¿Quitar esta foto?"},
   "set.title":{en:"Settings",es:"Ajustes"},
   "set.signedin":{en:"Signed in as",es:"Sesión de"},
   "set.notif":{en:"Notify my phone when…",es:"Avisar a mi teléfono cuando…"},
@@ -424,6 +476,10 @@ function t(key){
   return (lang==='es' ? (s.es||s.en) : s.en) || key;
 }
 function taskText(tk){ return (lang==='es' && tk.es) ? tk.es : tk.en; }
+/* content(): a {en,es} object renders in the viewer's language; a plain string shows verbatim (typed notes are never machine-translated) */
+function content(v){ if(v==null) return ''; if(typeof v==='object') return v[lang] || v.en || ''; return v; }
+/* both(key): snapshot a wording key as {en,es} so app-generated log lines switch language for each viewer */
+function both(key){ const s=(S.uiText&&S.uiText[key])||EXTRA[key]||{en:key,es:key}; return {en:s.en, es:s.es||s.en}; }
 
 /* ================= date helpers (America/Chicago) ================= */
 function chiDateKey(d=new Date()){ return new Intl.DateTimeFormat('en-CA',{timeZone:TZ}).format(d); }
@@ -463,13 +519,13 @@ const S = {
   todayKey:chiDateKey(), weekday:chiWeekday(),
   todayDone:{},                  // days/{today}.done
   lastDone:{},                   // state/lastDone.byTask
-  issues:[], notes:[], notesFor:null,
+  issues:[], notes:[], notesFor:null, photos:[], photosFor:null,
   screen:'signin', tab:'today', machine:null, viewIssue:null,
   sort:(localStorage.getItem('pmSort')||'default'),
   tf:(localStorage.getItem('pmTf')||'Daily'), machineCadence:'Daily',
   histMachine:'', histSearch:'', histTask:null, histEvents:[], histLoading:false, histMisses:false,
   pinFor:null, pinBuf:'', pinErr:'', pinBusy:false,
-  calMonth:null, fMachine:'', fFreq:'', fStatus:'', calDay:null,
+  calMonth:null, fMachine:'', fFreq:'', fStatus:'', fPerson:'', calDay:null,
   monthDays:{}, monthLoaded:'',
   offline:false
 };
@@ -698,8 +754,42 @@ function toggleCheck(task){
 }
 async function createIssue(data){
   try{
-    await addDoc(collection(db,'issues'),{...data,byId:S.me.id,by:S.me.name,at:serverTimestamp(),status:'open'});
+    return await addDoc(collection(db,'issues'),{...data,byId:S.me.id,by:S.me.name,at:serverTimestamp(),status:'open'});
   }catch(e){ writeFail(e); }
+}
+async function compressImage(file){
+  let src, bmp=null;
+  try{ bmp = await createImageBitmap(file,{imageOrientation:'from-image'}); src=bmp; }
+  catch(e){ src = await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=URL.createObjectURL(file);}); }
+  let w=src.width, h=src.height; const maxDim=1024;
+  if(Math.max(w,h)>maxDim){ const r=maxDim/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
+  const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+  canvas.getContext('2d').drawImage(src,0,0,w,h);
+  let q=0.6, url=canvas.toDataURL('image/jpeg',q);
+  while(url.length>760000 && q>0.3){ q-=0.1; url=canvas.toDataURL('image/jpeg',q); }
+  if(bmp&&bmp.close)bmp.close();
+  return url;
+}
+async function addPhoto(iid,dataUrl){
+  await addDoc(collection(db,'issues',iid,'photos'),{data:dataUrl,by:S.me.name,byId:S.me.id,at:serverTimestamp()});
+}
+async function deletePhoto(iid,pid){ try{ await deleteDoc(doc(db,'issues',iid,'photos',pid)); }catch(e){ writeFail(e); } }
+function pickPhoto(onReady){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*'; inp.setAttribute('capture','environment');
+  inp.onchange=async()=>{
+    const f=inp.files&&inp.files[0]; if(!f)return;
+    try{ const url=await compressImage(f); onReady(url); }
+    catch(e){ toast(t('iss.photoErr')); }
+  };
+  inp.click();
+}
+function photoViewer(dataUrl){
+  const bg=$('<div class="photoview"></div>');
+  bg.appendChild($(`<img src="${dataUrl}" alt="">`));
+  const x=$('<button class="x">✕</button>'); x.onclick=closeModal; bg.appendChild(x);
+  bg.onclick=(e)=>{ if(e.target===bg) closeModal(); };
+  modalHost.innerHTML=''; modalHost.appendChild(bg);
 }
 async function addIssueNote(iid,text){
   try{ await addDoc(collection(db,'issues',iid,'notes'),{byId:S.me.id,by:S.me.name,at:serverTimestamp(),text}); }
@@ -708,19 +798,19 @@ async function addIssueNote(iid,text){
 async function setUsable(issue,val){
   try{
     await updateDoc(doc(db,'issues',issue.iid),{usable:val});
-    addIssueNote(issue.iid, t(val==='unusable'?'iss.markdown':'iss.markup'));
+    addIssueNote(issue.iid, both(val==='unusable'?'iss.markdown':'iss.markup'));
   }catch(e){ writeFail(e); }
 }
 async function reopenIssue(issue){
   try{
     await updateDoc(doc(db,'issues',issue.iid),{status:'open',clearedBy:deleteField(),clearedAt:deleteField()});
-    addIssueNote(issue.iid, t('iss.reopenedAction'));
+    addIssueNote(issue.iid, both('iss.reopenedAction'));
   }catch(e){ writeFail(e); }
 }
 async function clearIssue(issue){
   try{
     await updateDoc(doc(db,'issues',issue.iid),{status:'cleared',clearedBy:S.me.id,clearedAt:serverTimestamp()});
-    addIssueNote(issue.iid, t('iss.clearedAction'));
+    addIssueNote(issue.iid, both('iss.clearedAction'));
   }catch(e){ writeFail(e); }
 }
 
@@ -785,7 +875,7 @@ function renderSignin(){
       <div class="muted" style="font-size:.9rem">${t('signin.pin')}</div>
       <div class="dots">${[0,1,2,3].map(i=>`<span class="dot ${S.pinErr?'err':(i<S.pinBuf.length?'on':'')}"></span>`).join('')}</div>
       <div class="err-msg">${S.pinBusy?'…':S.pinErr}</div></div>`);
-    const keys=$('<div class="keys pad" style="max-width:320px;margin:8px auto 0"></div>');
+    const keys=$('<div class="keys pad" style="max-width:380px;margin:10px auto 0"></div>');
     ['1','2','3','4','5','6','7','8','9','back','0','ok'].forEach(k=>{
       let label=k, cls='key';
       if(k==='back'){label='⌫';cls+=' wide';}
@@ -826,6 +916,15 @@ function renderTop(){
   return bar;
 }
 
+function dueMeta(tk){
+  if(!tk.due) return null;
+  const dd=daysBetween(S.todayKey,tk.due);
+  const dstr=new Date(keyToUTC(tk.due)).toLocaleDateString(lang==='es'?'es':'en',{month:'short',day:'numeric',timeZone:'UTC'});
+  if(dd<0) return {cls:'overdue',text:t('due.overdue')+' · '+dstr,days:dd};
+  if(dd===0) return {cls:'soon',text:t('due.today'),days:0};
+  if(dd<=7) return {cls:'soon',text:t('due.in')+' '+dstr,days:dd};
+  return {cls:'later',text:t('due.in')+' '+dstr,days:dd};
+}
 function cadenceMap(){
   // one pass: code -> { cadKey -> [tasks] }
   const map={};
@@ -863,6 +962,20 @@ function renderToday(){
     <span style="font-weight:800;color:var(--good)">${sd}</span><span style="font-weight:800">/${st}</span>
     <span class="muted"> ${t('cad.'+S.tf).toLowerCase()} · ${t('home.period')}</span>${full?' <span style="color:var(--good);font-weight:800">✓</span>':''}</div>`));
 
+  const dueSoon=S.tasks.filter(tk=>tk.due && !isDoneNow(tk) && daysBetween(S.todayKey,tk.due)<=14).sort((a,b)=>a.due<b.due?-1:1);
+  if(dueSoon.length){
+    s.appendChild($(`<h2 class="sec pad">${t('home.duesoon')}</h2>`));
+    const stk=$('<div class="stack pad"></div>');
+    dueSoon.slice(0,12).forEach(tk=>{
+      const dm=dueMeta(tk), mm=S.machines.find(x=>x.code===tk.code);
+      const card=$(`<button class="card duesoon-card">
+        <span class="dtxt"><span class="dt-name">${taskText(tk)}</span><span class="dt-m">${mm?pretty(mm.name):tk.code} · ${tk.id}</span></span>
+        <span class="duebadge ${dm.cls}">${dm.text}</span><span class="chev">›</span></button>`);
+      card.onclick=()=>{ S.machine=tk.code; S.machineCadence=cadenceOf(tk.freq); render(); window.scrollTo(0,0); };
+      stk.appendChild(card);
+    });
+    s.appendChild(stk);
+  }
   s.appendChild(sortControl());
   s.appendChild($(`<h2 class="sec pad">${t('home.machines')}</h2>`));
 
@@ -941,6 +1054,7 @@ function renderMachine(){
     groups[f].forEach(tk=>{
       const d=isDoneNow(tk);
       const doneToday=S.todayDone[tk.id];
+      const dm=dueMeta(tk);
       let signed='';
       if(doneToday) signed=`${t('card.signed')} ${doneToday.by}${doneToday.atStr?' · '+doneToday.atStr:''}`;
       else if(d&&d.date) signed=`${t('card.signed')} ${(S.peopleById[d.byId]||{}).name||d.byId} · ${d.date.slice(5)}`;
@@ -948,7 +1062,7 @@ function renderMachine(){
         <button class="check" ${d&&!doneToday?'disabled':''}>${d?'✓':''}</button>
         <div class="t-body">
           <div class="t-en">${taskText(tk)}</div>
-          <div class="t-meta"><span class="t-id">${tk.id}</span>
+          <div class="t-meta"><span class="t-id">${tk.id}</span>${dm?`<span class="duebadge ${dm.cls}">${dm.text}</span>`:''}
             ${d?`<span class="t-signed">${signed}</span>`:`<button class="t-issue">⚑ ${t('card.issue')}</button>`}
           </div></div></div>`);
       const chk=row.querySelector('.check');
@@ -969,6 +1083,20 @@ function renderMachine(){
 }
 
 /* ---------- calendar ---------- */
+function calMatchM(code){ return !S.fMachine || code===S.fMachine; }
+function calCounts(k){
+  const doneMap = k===S.todayKey ? S.todayDone : (S.monthDays[k]||{});
+  const isFuture=k>S.todayKey, isToday=k===S.todayKey;
+  let done=0;
+  Object.keys(doneMap).forEach(id=>{ const e=doneMap[id]||{}; if(S.fPerson && e.byId!==S.fPerson) return; const tk=S.byId[id]; if(!tk||calMatchM(tk.code)) done++; });
+  const rounds = dailyMTdueOn(k).filter(tk=>calMatchM(tk.code));
+  const dueTasks = S.tasks.filter(tk=>tk.due===k && calMatchM(tk.code));
+  let missed=0, upcoming=0;
+  if(isFuture) upcoming = rounds.length + dueTasks.length;
+  else if(isToday) upcoming = rounds.filter(tk=>!doneMap[tk.id]).length + dueTasks.filter(tk=>!doneMap[tk.id]).length;
+  else missed = rounds.filter(tk=>!doneMap[tk.id]).length + dueTasks.filter(tk=>!doneMap[tk.id]).length;
+  return {done, missed, upcoming, hasDue:dueTasks.length>0, roundsTotal:rounds.length};
+}
 function renderCalendar(){
   const s=$('<div class="screen"></div>');
   const [y,m]=S.calMonth.split('-').map(Number);
@@ -977,64 +1105,45 @@ function renderCalendar(){
     <div class="calnav"><button class="arrow" data-p="-1">‹</button>
       <div class="mtitle">${monthName}</div>
       <button class="arrow" data-p="1">›</button></div>
-    <div class="filters"><select id="fM"></select><select id="fF"></select><select id="fS"></select></div></div>`);
+    <div class="filters"><select id="fM"></select><select id="fP"></select></div></div>`);
   s.appendChild(bar);
-  const fM=bar.querySelector('#fM'),fF=bar.querySelector('#fF'),fS=bar.querySelector('#fS');
+  const fM=bar.querySelector('#fM'),fP=bar.querySelector('#fP');
   fM.appendChild($(`<option value="">${t('cal.filterMachine')}</option>`));
   S.machines.slice().sort((a,b)=>pretty(a.name).localeCompare(pretty(b.name))).forEach(mm=>fM.appendChild($(`<option value="${mm.code}" ${S.fMachine===mm.code?'selected':''}>${pretty(mm.name)}</option>`)));
-  fF.appendChild($(`<option value="">${t('cal.filterFreq')}</option>`));
-  FREQ_ORDER.forEach(f=>fF.appendChild($(`<option value="${f}" ${S.fFreq===f?'selected':''}>${t('freq.'+f)!=='freq.'+f?t('freq.'+f):f}</option>`)));
-  fS.appendChild($(`<option value="">${t('cal.filterStatus')}</option>`));
-  [['done',t('st.done')],['missed',t('st.missed')]].forEach(([v,l])=>fS.appendChild($(`<option value="${v}" ${S.fStatus===v?'selected':''}>${l}</option>`)));
+  fP.appendChild($(`<option value="">${t('cal.filterPerson')}</option>`));
+  S.people.filter(p=>p.active).forEach(p=>fP.appendChild($(`<option value="${p.id}" ${S.fPerson===p.id?'selected':''}>${p.name}</option>`)));
   fM.onchange=()=>{S.fMachine=fM.value;render();};
-  fF.onchange=()=>{S.fFreq=fF.value;render();};
-  fS.onchange=()=>{S.fStatus=fS.value;render();};
+  fP.onchange=()=>{S.fPerson=fP.value;render();};
   bar.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{
     const nm=new Date(Date.UTC(y,m-1+parseInt(b.dataset.p),1));
     S.calMonth=nm.toISOString().slice(0,7); S.calDay=null; S.monthLoaded=''; render();
   });
 
+  // month compliance stat (past days this month)
+  const daysIn=new Date(Date.UTC(y,m,0)).getUTCDate();
+  let mR=0,mDone=0,mMiss=0;
+  for(let d=1;d<=daysIn;d++){ const k=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; if(k<S.todayKey){ const c=calCounts(k); mR+=c.roundsTotal; mDone+=(c.roundsTotal-c.missed); if(c.missed>0)mMiss++; } }
+  const pct=mR?Math.round(100*mDone/mR):100;
+  s.appendChild($(`<div class="pad" style="font-size:.9rem;margin:2px 0 6px"><span style="font-weight:800;color:${pct>=95?'var(--good)':pct>=80?'var(--due)':'var(--bad)'}">${pct}%</span> <span class="muted">${t('cal.roundsPct')}${mMiss?` · ${mMiss} ${t('cal.missedDays')}`:''}</span></div>`));
+
   const wd=lang==='es'?['D','L','M','X','J','V','S']:['S','M','T','W','T','F','S'];
   s.appendChild($(`<div class="weekhdr">${wd.map(d=>`<div>${d}</div>`).join('')}</div>`));
-
-  function taskMatch(tk){
-    if(!tk) return !S.fMachine && !S.fFreq;
-    if(S.fMachine && tk.code!==S.fMachine) return false;
-    if(S.fFreq && tk.freq!==S.fFreq) return false;
-    return true;
-  }
-  function dayCounts(k){
-    const doneMap = k===S.todayKey ? S.todayDone : (S.monthDays[k]||{});
-    let done=0;
-    Object.keys(doneMap).forEach(id=>{ if(taskMatch(S.byId[id])) done++; });
-    const dueList=dailyMTdueOn(k).filter(taskMatch);
-    const missed=dueList.filter(tk=>!doneMap[tk.id]).length;
-    return {done,missed,due:dueList.length};
-  }
 
   const grid=$('<div class="grid"></div>');
   const startPad=new Date(Date.UTC(y,m-1,1)).getUTCDay();
   for(let i=0;i<startPad;i++) grid.appendChild($('<div class="cell blank"></div>'));
-  const daysIn=new Date(Date.UTC(y,m,0)).getUTCDate();
   for(let dnum=1;dnum<=daysIn;dnum++){
     const k=`${y}-${String(m).padStart(2,'0')}-${String(dnum).padStart(2,'0')}`;
     const isToday=k===S.todayKey, isFuture=k>S.todayKey;
-    let cell;
-    const cls=`cell ${isToday?'today':''} ${isFuture?'future':''}`;
-    if(isFuture){
-      const c=dailyMTdueOn(k).filter(taskMatch).length;
-      cell=$(`<div class="${cls}"><div class="dnum">${dnum}</div>${c?`<div class="bignum">${c}</div><div class="cap">${t('cal.due')}</div>`:''}</div>`);
-    } else {
-      const c=dayCounts(k);
-      if(c.done===0&&c.missed===0&&!isToday){
-        cell=$(`<div class="${cls}"><div class="dnum">${dnum}</div></div>`);
-      } else {
-        const dots=[];
-        if(S.fStatus!=='missed') for(let i=0;i<Math.min(c.done,9);i++)dots.push('<span class="dt done"></span>');
-        if(S.fStatus!=='done') for(let i=0;i<Math.min(c.missed,9);i++)dots.push(isToday?'<span class="dt due"></span>':'<span class="dt missed"></span>');
-        cell=$(`<div class="${cls}"><div class="dnum">${dnum}</div><div class="bars">${dots.join('')}</div></div>`);
-      }
-    }
+    const c=calCounts(k);
+    let tint=''; if(!isFuture&&!isToday) tint = c.missed===0 ? 'cell-good' : 'cell-bad';
+    const cls=`cell ${isToday?'today':''} ${isFuture?'future':''} ${tint}`;
+    const cell=$(`<div class="${cls}"><div class="dnum">${dnum}${c.hasDue?'<span class="due-dot">•</span>':''}</div>
+      <div class="cc3">
+        <span class="cc g ${c.done?'':'z'}">●${c.done}</span>
+        <span class="cc r ${c.missed?'':'z'}">●${c.missed}</span>
+        <span class="cc b ${c.upcoming?'':'z'}">●${c.upcoming}</span>
+      </div></div>`);
     cell.onclick=()=>{S.calDay=(S.calDay===k?null:k);render();};
     grid.appendChild(cell);
   }
@@ -1043,25 +1152,27 @@ function renderCalendar(){
     <span><span class="dt done"></span>${t('cal.legDone')}</span>
     <span><span class="dt missed"></span>${t('cal.legMissed')}</span>
     <span><span class="dt due"></span>${t('cal.legDue')}</span></div>`));
-  if(S.calDay) s.appendChild(renderDayDetail(S.calDay,taskMatch));
+  if(S.calDay) s.appendChild(renderDayDetail(S.calDay));
   return s;
 }
-function renderDayDetail(k,taskMatch){
+function renderDayDetail(k){
   const doneMap = k===S.todayKey ? S.todayDone : (S.monthDays[k]||{});
-  const isFuture=k>S.todayKey;
+  const isFuture=k>S.todayKey, isToday=k===S.todayKey;
   const dateStr=new Date(keyToUTC(k)).toLocaleDateString(lang==='es'?'es':'en',{weekday:'long',month:'long',day:'numeric',timeZone:'UTC'});
   const wrap=$(`<div class="card" style="margin:14px;border-radius:16px">
     <div class="mhead"><div style="font-weight:800">${dateStr}</div></div>
     <div class="daytasks" id="dt"></div></div>`);
   const host=wrap.querySelector('#dt');
   const items=[];
+  const dueTasks = S.tasks.filter(tk=>tk.due===k && calMatchM(tk.code));
   if(isFuture){
-    dailyMTdueOn(k).filter(taskMatch).forEach(tk=>items.push([tk,'due',null]));
+    dailyMTdueOn(k).filter(tk=>calMatchM(tk.code)).forEach(tk=>items.push([tk,'due',null]));
+    dueTasks.forEach(tk=>items.push([tk,'due',null]));
   } else {
-    Object.keys(doneMap).forEach(id=>{ const tk=S.byId[id]; if(taskMatch(tk)) items.push([tk||{id,code:'?',en:id},'done',doneMap[id]]); });
-    dailyMTdueOn(k).filter(taskMatch).forEach(tk=>{ if(!doneMap[tk.id]) items.push([tk, k===S.todayKey?'due':'missed', null]); });
+    Object.keys(doneMap).forEach(id=>{ const e=doneMap[id]||{}; if(S.fPerson&&e.byId!==S.fPerson)return; const tk=S.byId[id]; if(!tk||calMatchM(tk.code)) items.push([tk||{id,code:'?',en:id},'done',e]); });
+    dailyMTdueOn(k).filter(tk=>calMatchM(tk.code)).forEach(tk=>{ if(!doneMap[tk.id]) items.push([tk, isToday?'due':'missed', null]); });
+    dueTasks.forEach(tk=>{ if(!doneMap[tk.id]) items.push([tk, isToday?'due':'missed', null]); });
   }
-  if(S.fStatus){ const want=S.fStatus; for(let i=items.length-1;i>=0;i--) if(items[i][1]!==want) items.splice(i,1); }
   if(!items.length){ host.appendChild($(`<div class="muted" style="padding:16px">${t('cal.dayNothing')}</div>`)); return wrap; }
   items.sort((a,b)=>String(a[0].code).localeCompare(String(b[0].code)));
   items.slice(0,80).forEach(([tk,st,info])=>{
@@ -1091,9 +1202,9 @@ function renderIssues(){
   const bar=$(`<div class="issbar"><div class="h">${t('iss.head')}</div><button class="newiss">${t('iss.new')}</button></div>`);
   bar.querySelector('.newiss').onclick=()=>issueSheet({});
   s.appendChild(bar);
-  const isPrio=i=>i.status==='open'&&(i.urgent||i.usable==='unusable');
-  const prio=S.issues.filter(isPrio);
-  const open=S.issues.filter(i=>i.status==='open'&&!isPrio(i));
+  const down=S.issues.filter(i=>i.status==='open'&&i.usable==='unusable');
+  const working=S.issues.filter(i=>i.status==='open'&&i.usable!=='unusable'&&i.urgent);
+  const open=S.issues.filter(i=>i.status==='open'&&i.usable!=='unusable'&&!i.urgent);
   const cleared=S.issues.filter(i=>i.status==='cleared').slice(0,30);
   function card(i){
     const cls=i.status==='cleared'?'cleared':(i.usable==='unusable'?'down':'');
@@ -1107,9 +1218,13 @@ function renderIssues(){
     c.onclick=()=>{S.viewIssue=i.iid;S.notesFor=null;render();window.scrollTo(0,0);};
     return c;
   }
-  if(prio.length){
-    s.appendChild($(`<div class="prio-h">⚠️ ${t('iss.priority')}</div>`));
-    const w=$('<div class="prio-wrap"></div>'); prio.forEach(i=>w.appendChild(card(i))); s.appendChild(w);
+  if(down.length){
+    s.appendChild($(`<div class="prio-h">⚠️ ${t('iss.tierDown')}</div>`));
+    const w=$('<div class="prio-wrap"></div>'); down.forEach(i=>w.appendChild(card(i))); s.appendChild(w);
+  }
+  if(working.length){
+    s.appendChild($(`<div class="work-h">⚠️ ${t('iss.tierWorking')}</div>`));
+    const w=$('<div class="work-wrap"></div>'); working.forEach(i=>w.appendChild(card(i))); s.appendChild(w);
   }
   s.appendChild($(`<h2 class="sec pad">${t('iss.open')} · ${open.length}</h2>`));
   if(open.length){ const st=$('<div class="stack pad"></div>'); open.forEach(i=>st.appendChild(card(i))); s.appendChild(st); }
@@ -1121,7 +1236,8 @@ function renderIssues(){
   return s;
 }
 
-let notesUnsub=null;
+let notesUnsub=null, photosUnsub=null;
+function stopIssueSubs(){ if(notesUnsub){notesUnsub();notesUnsub=null;} if(photosUnsub){photosUnsub();photosUnsub=null;} S.notesFor=null; S.photosFor=null; }
 function renderIssueDetail(){
   const i=S.issues.find(x=>x.iid===S.viewIssue);
   if(!i){ S.viewIssue=null; return renderIssues(); }
@@ -1132,9 +1248,16 @@ function renderIssueDetail(){
       const l=[];qs.forEach(d=>l.push(d.data({serverTimestamps:'estimate'})));S.notes=l;render();
     });
   }
+  if(S.photosFor!==i.iid){
+    S.photosFor=i.iid; S.photos=[];
+    if(photosUnsub)photosUnsub();
+    photosUnsub=onSnapshot(query(collection(db,'issues',i.iid,'photos'),orderBy('at','asc')),qs=>{
+      const l=[];qs.forEach(d=>l.push({pid:d.id, ...d.data()}));S.photos=l;render();
+    });
+  }
   const s=$('<div class="screen"></div>');
   const head=$(`<div class="topbar"><button class="t-back">‹</button><div class="t-title">${mName(i.machineCode)}<span class="t-sub">${t('iss.head')}</span></div></div>`);
-  head.querySelector('.t-back').onclick=()=>{S.viewIssue=null;if(notesUnsub){notesUnsub();notesUnsub=null;}S.notesFor=null;render();};
+  head.querySelector('.t-back').onclick=()=>{S.viewIssue=null;stopIssueSubs();render();};
   head.appendChild(langToggle(true));
   s.appendChild(head);
   s.appendChild($(`<div class="card iss-detail" style="margin:16px;border-radius:16px;padding:4px 16px 16px">
@@ -1144,6 +1267,23 @@ function renderIssueDetail(){
     <div class="row"><span class="k">${t('iss.reportedby')}</span><span>${i.by} · ${fmtWhen(i.at)}</span></div>
     ${i.urgent?`<div class="row"><span class="k">⚠️</span><span style="color:var(--urgent);font-weight:700">${lang==='es'?'Urgente':'Urgent'}</span></div>`:''}
     <div style="padding:14px 0;font-size:1rem">${i.note||''}</div></div>`));
+  if(S.photos.length || i.status!=='cleared'){
+    const pcard=$(`<div class="pad"><div class="field-lbl">📷 ${t('iss.photos')}</div><div class="photogrid" id="idphotos"></div></div>`);
+    const grid=pcard.querySelector('#idphotos');
+    S.photos.forEach(ph=>{
+      const canDel = i.status!=='cleared' && S.me && (S.me.canClear || ph.byId===S.me.id);
+      const th=$(`<div class="photothumb"><img src="${ph.data}" alt="">${canDel?'<button class="rm">✕</button>':''}</div>`);
+      th.querySelector('img').onclick=()=>photoViewer(ph.data);
+      const rm=th.querySelector('.rm'); if(rm) rm.onclick=(e)=>{e.stopPropagation(); deletePhoto(i.iid,ph.pid);};
+      grid.appendChild(th);
+    });
+    if(i.status!=='cleared' && S.photos.length<4){
+      const add=$(`<button class="addphoto"><span class="pi">📷</span>${t('iss.addPhoto')}</button>`);
+      add.onclick=()=>pickPhoto(async url=>{ toast(t('iss.photoBusy')); try{ await addPhoto(i.iid,url);}catch(e){ toast(t('iss.photoErr')); } });
+      grid.appendChild(add);
+    }
+    s.appendChild(pcard);
+  }
   if(i.status!=='cleared'){
     const cond=$(`<div class="pad"><div class="field-lbl">${t('iss.condition')}</div>
       <div class="seg"><button data-c="usable" class="${i.usable!=='unusable'?'on':''}">${t('iss.usable')}</button>
@@ -1154,7 +1294,7 @@ function renderIssueDetail(){
   const prog=$(`<div class="pad"><div class="field-lbl">${t('iss.progress')}</div><div class="prog" id="plog"></div></div>`);
   const log=prog.querySelector('#plog');
   if(!S.notes.length) log.appendChild($('<div class="muted" style="padding:8px 0;font-size:.9rem">—</div>'));
-  S.notes.forEach(n=>log.appendChild($(`<div class="pitem"><span style="flex:1"><span class="pwho">${n.by}</span> ${n.text}<br><span class="pwhen">${fmtWhen(n.at)}</span></span></div>`)));
+  S.notes.forEach(n=>log.appendChild($(`<div class="pitem"><span style="flex:1"><span class="pwho">${n.by}</span> ${content(n.text)}<br><span class="pwhen">${fmtWhen(n.at)}</span></span></div>`)));
   s.appendChild(prog);
   if(i.status!=='cleared'){
     const add=$(`<div class="pad"><textarea class="note" id="pnote" placeholder="${t('iss.addnote')}" style="min-height:56px"></textarea>
@@ -1230,9 +1370,26 @@ function issueSheet(opts){
       <button data-c="usable" class="${(editing?e.usable:'usable')!=='unusable'?'on':''}">${t('iss.usable')}</button>
       <button data-c="unusable" class="${editing&&e.usable==='unusable'?'on bad':''}">${t('iss.unusable')}</button></div>
     <textarea class="note" placeholder="${t('issue.note')}">${editing?(e.note||''):''}</textarea>
+    ${editing?'':`<div class="field-lbl">${t('iss.photos')} <span style="font-weight:500;color:var(--muted)">— ${t('iss.photoMax')}</span></div><div class="photogrid" id="pgrid"></div>`}
     <button class="btn-primary" data-send>${editing?t('iss.save'):(opts.taskLabel?t('issue.send'):t('iss.create'))}</button>
     <button class="btn-ghost" data-close>${t('task.close')}</button></div>`);
   let urgent=editing?!!e.urgent:false, cond=editing?(e.usable||'usable'):'usable';
+  const pendingPhotos=[];
+  const pgrid=sheet.querySelector('#pgrid');
+  function renderPgrid(){
+    if(!pgrid) return; pgrid.innerHTML='';
+    pendingPhotos.forEach((url,idx)=>{
+      const th=$(`<div class="photothumb"><img src="${url}" alt=""><button class="rm">✕</button></div>`);
+      th.querySelector('.rm').onclick=()=>{ pendingPhotos.splice(idx,1); renderPgrid(); };
+      pgrid.appendChild(th);
+    });
+    if(pendingPhotos.length<4){
+      const add=$(`<button class="addphoto"><span class="pi">📷</span>${t('iss.addPhoto')}</button>`);
+      add.onclick=()=>pickPhoto(url=>{ if(pendingPhotos.length<4){ pendingPhotos.push(url); renderPgrid(); } });
+      pgrid.appendChild(add);
+    }
+  }
+  renderPgrid();
   const unitWrap=sheet.querySelector('#unitWrap');
   function fillUnits(code,pre){
     const units=unitList(code);
@@ -1264,14 +1421,15 @@ function issueSheet(opts){
       closeModal();
       try{
         await updateDoc(doc(db,'issues',e.iid), upd);
-        const chg=[];
-        if(!!e.urgent!==urgent) chg.push(urgent?t('iss.chgUrgentOn'):t('iss.chgUrgentOff'));
-        if((e.usable||'usable')!==cond) chg.push(t(cond==='unusable'?'iss.markdown':'iss.markup'));
-        if((e.machineCode||'')!==machineCode) chg.push(t('iss.chgMachine')+' '+mName(machineCode));
+        const en=[], es=[];
+        const push2=(k,suffix)=>{ const b=both(k); en.push(b.en+(suffix||'')); es.push(b.es+(suffix||'')); };
+        if(!!e.urgent!==urgent) push2(urgent?'iss.chgUrgentOn':'iss.chgUrgentOff');
+        if((e.usable||'usable')!==cond) push2(cond==='unusable'?'iss.markdown':'iss.markup');
+        if((e.machineCode||'')!==machineCode) push2('iss.chgMachine',' '+mName(machineCode));
         const oldU=e.unit||'', newU=unit||'';
-        if(oldU!==newU) chg.push(newU?(t('iss.chgUnit')+' '+newU):t('iss.chgUnitClear'));
-        if((e.note||'')!==note) chg.push(t('iss.chgNote'));
-        if(chg.length) addIssueNote(e.iid, t('iss.editedLog')+': '+chg.join(', '));
+        if(oldU!==newU){ if(newU) push2('iss.chgUnit',' '+newU); else push2('iss.chgUnitClear'); }
+        if((e.note||'')!==note) push2('iss.chgNote');
+        if(en.length){ const eb=both('iss.editedLog'); addIssueNote(e.iid,{en:eb.en+': '+en.join(', '),es:eb.es+': '+es.join(', ')}); }
         toast(t('iss.saved'));
       }catch(err){ writeFail(err); }
     } else {
@@ -1279,8 +1437,9 @@ function issueSheet(opts){
       data.machineName = machineCode==='OTHER' ? null : mName(machineCode);
       if(unit)data.unit=unit;
       if(opts.taskId)data.taskId=opts.taskId;
-      createIssue(data);
       closeModal(); toast(t('issue.sent'));
+      const ref=await createIssue(data);
+      if(ref&&pendingPhotos.length){ for(const p of pendingPhotos){ try{ await addPhoto(ref.id,p); }catch(e){} } }
     }
   };
   sheet.querySelector('[data-close]').onclick=closeModal;
@@ -1296,8 +1455,9 @@ function toast(msg){
 /* ---------- settings ---------- */
 async function openSettings(){
   if(!S.me)return;
-  let pref='urgent';
-  try{ const d=await getDoc(doc(db,'prefs',S.me.id)); if(d.exists())pref=d.data().notify||'urgent'; }catch(e){}
+  let P={notify:'urgent',dueWeekBefore:true,dueOnDay:true,overdueEvery:'daily'};
+  try{ const d=await getDoc(doc(db,'prefs',S.me.id)); if(d.exists())P={...P,...d.data()}; }catch(e){}
+  const savePref=(patch)=>{ Object.assign(P,patch); return setDoc(doc(db,'prefs',S.me.id),patch,{merge:true}).catch(e=>writeFail(e)); };
   const bg=$('<div class="sheet-bg"></div>');
   const opts=[['urgent',t('set.urgentOnly'),t('set.recommended')],['all',t('set.all'),''],['off',t('set.off'),'']];
   const sheet=$(`<div class="sheet">
@@ -1307,21 +1467,37 @@ async function openSettings(){
     <div id="radios"></div>
     <div id="devrow" style="margin-top:8px"></div>
     <div class="setnote">${t('set.badgeAlways')}</div>
-    <button class="btn-primary" data-close style="margin-top:16px">${t('task.close')}</button>
+    <div class="field-lbl" style="margin-top:20px">📅 ${t('set.dueTitle')}</div>
+    <div id="duetoggles"></div>
+    <button class="btn-primary" data-close style="margin-top:18px">${t('task.close')}</button>
     <button class="btn-ghost" data-out>${t('signout')}</button></div>`);
   const radios=sheet.querySelector('#radios');
   function paint(){
     radios.innerHTML='';
     opts.forEach(([val,label,tag])=>{
-      const on=pref===val;
+      const on=P.notify===val;
       const r=$(`<button class="radio ${on?'on':''}"><span class="dotr"></span>
         <span class="rlabel">${label}${tag?`<br><span class="rtag">${tag}</span>`:''}</span></button>`);
-      r.onclick=async()=>{ pref=val; paint();
-        try{ await setDoc(doc(db,'prefs',S.me.id),{notify:val}); }catch(e){ writeFail(e); } };
+      r.onclick=()=>{ savePref({notify:val}); paint(); };
       radios.appendChild(r);
     });
   }
   paint();
+  function paintDue(){
+    const el=sheet.querySelector('#duetoggles'); if(!el)return; el.innerHTML='';
+    [['dueWeekBefore',t('set.dueWeek')],['dueOnDay',t('set.dueDay')]].forEach(([key,label])=>{
+      const on=!!P[key];
+      const r=$(`<button class="radio ${on?'on':''}"><span class="dotr"></span><span class="rlabel">${label}</span></button>`);
+      r.onclick=()=>{ savePref({[key]:!P[key]}); paintDue(); };
+      el.appendChild(r);
+    });
+    const ov=[['off',t('set.ovOff')],['daily',t('set.ovDaily')],['3days',t('set.ov3')],['weekly',t('set.ovWeekly')]];
+    const w=$(`<div><div class="field-lbl" style="margin-top:8px">${t('set.dueOverdue')}</div>
+      <select class="selbox" id="ovsel">${ov.map(([v,l])=>`<option value="${v}" ${P.overdueEvery===v?'selected':''}>${l}</option>`).join('')}</select></div>`);
+    w.querySelector('#ovsel').onchange=(e)=>savePref({overdueEvery:e.target.value});
+    el.appendChild(w);
+  }
+  paintDue();
   function paintDev(){
     const el=sheet.querySelector('#devrow'); if(!el) return; el.innerHTML='';
     if(!notifSupported()){
@@ -1478,7 +1654,7 @@ function renderNav(){
     <button data-tab="summary" class="${S.tab==='summary'?'on':''}"><span class="ni">◐</span>${t('nav.shift')}</button></div>`);
   nav.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
     S.tab=b.dataset.tab;S.machine=null;S.calDay=null;S.viewIssue=null;S.histTask=null;
-    if(notesUnsub){notesUnsub();notesUnsub=null;S.notesFor=null;}
+    stopIssueSubs();
     render();window.scrollTo(0,0);});
   return nav;
 }
