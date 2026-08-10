@@ -199,9 +199,13 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 @media (prefers-reduced-motion:reduce){.sheet{animation:none}}
 .sheet h3{margin:2px 0 4px;font-size:1.15rem}
 .sheet .sub{color:var(--muted);font-size:.85rem;margin-bottom:16px}
-.opt{display:flex;align-items:center;gap:12px;width:100%;padding:15px;border-radius:14px;border:1.5px solid var(--line);background:#fff;text-align:left;margin-bottom:10px;font-weight:600}
-.opt.urgent{border-color:var(--urgent);background:var(--bad-soft)}
-.opt .oi{font-size:1.3rem}
+.opt{display:flex;align-items:center;gap:12px;width:100%;padding:15px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);text-align:left;margin-bottom:10px;font-weight:600;color:var(--muted)}
+.opt .oi{font-size:1.3rem;opacity:.5}
+.opt.sel{color:var(--ink);font-weight:700}
+.opt.sel .oi{opacity:1}
+.opt.urgent.sel{border-color:var(--urgent);background:var(--bad-soft);color:var(--urgent)}
+.opt.norm.sel{border-color:var(--gold-deep);background:var(--gold-soft);color:var(--gold-deep)}
+.opt-hint{font-size:.72rem;color:var(--muted);font-weight:600;margin:-4px 0 8px}
 .note{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px;font-size:1rem;min-height:70px;resize:none;margin-bottom:12px;font-family:inherit;background:#fff;color:var(--ink)}
 .btn-primary{width:100%;height:52px;border-radius:14px;background:var(--charcoal);color:#fff;font-weight:700;font-size:1rem}
 .btn-primary:disabled{opacity:.5}
@@ -428,6 +432,7 @@ const EXTRA = {
   "iss.other":{en:"Other",es:"Otro"},
   "iss.create":{en:"Create issue",es:"Crear problema"},
   "iss.normalFull":{en:"Non-Urgent - just log it for later",es:"No urgente - solo anotarlo para después"},
+  "iss.pickOne":{en:"Tap one — required",es:"Toca una — requerido"},
   "iss.markdown":{en:"marked machine unusable",es:"marcó la máquina fuera de servicio"},
   "iss.markup":{en:"marked machine usable",es:"marcó la máquina utilizable"},
   "iss.clearedAction":{en:"cleared this issue",es:"resolvió el problema"},
@@ -1374,17 +1379,18 @@ function issueSheet(opts){
       <select class="selbox" id="mach">${sorted.map(mm=>`<option value="${mm.code}" ${curMachine===mm.code?'selected':''}>${pretty(mm.name)}</option>`).join('')}<option value="OTHER" ${curMachine==='OTHER'?'selected':''}>${t('iss.other')}</option></select>`}
     <div id="unitWrap"></div>
     <div class="field-lbl">${t('issue.how')}</div>
+    ${editing?'':`<div class="opt-hint">${t('iss.pickOne')}</div>`}
     <button class="opt urgent" data-u="1"><span class="oi">⚠️</span>${t('issue.urgent')}</button>
-    <button class="opt" data-u="0"><span class="oi">📝</span>${t('iss.normalFull')}</button>
+    <button class="opt norm" data-u="0"><span class="oi">📝</span>${t('iss.normalFull')}</button>
     <div class="field-lbl">${t('iss.condition')}</div>
     <div class="seg" id="cond">
       <button data-c="usable" class="${(editing?e.usable:'usable')!=='unusable'?'on':''}">${t('iss.usable')}</button>
       <button data-c="unusable" class="${editing&&e.usable==='unusable'?'on bad':''}">${t('iss.unusable')}</button></div>
     <textarea class="note" placeholder="${t('issue.note')}">${editing?(e.note||''):''}</textarea>
     ${editing?'':`<div class="field-lbl">${t('iss.photos')} <span style="font-weight:500;color:var(--muted)">— ${t('iss.photoMax')}</span></div><div class="photogrid" id="pgrid"></div>`}
-    <button class="btn-primary" data-send>${editing?t('iss.save'):(opts.taskLabel?t('issue.send'):t('iss.create'))}</button>
+    <button class="btn-primary" data-send ${editing?'':'disabled'}>${editing?t('iss.save'):(opts.taskLabel?t('issue.send'):t('iss.create'))}</button>
     <button class="btn-ghost" data-close>${t('task.close')}</button></div>`);
-  let urgent=editing?!!e.urgent:false, cond=editing?(e.usable||'usable'):'usable';
+  let urgent=editing?!!e.urgent:null, cond=editing?(e.usable||'usable'):'usable';
   const pendingPhotos=[];
   const pgrid=sheet.querySelector('#pgrid');
   function renderPgrid(){
@@ -1411,11 +1417,13 @@ function issueSheet(opts){
   fillUnits(fixedMachine?opts.machineCode:(sheet.querySelector('#mach')&&sheet.querySelector('#mach').value), editing?e.unit:'');
   const machSel=sheet.querySelector('#mach');
   if(machSel) machSel.onchange=()=>fillUnits(machSel.value,'');
-  if(editing){ const ub=sheet.querySelector(`[data-u="${e.urgent?1:0}"]`); if(ub) ub.style.outline='3px solid '+(e.urgent?'var(--urgent)':'var(--gold)'); }
+  const sendBtn=sheet.querySelector('[data-send]');
+  if(editing){ const ub=sheet.querySelector(`[data-u="${e.urgent?1:0}"]`); if(ub) ub.classList.add('sel'); }
   sheet.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>{
     urgent=b.dataset.u==='1';
-    sheet.querySelectorAll('[data-u]').forEach(x=>x.style.outline='');
-    b.style.outline='3px solid '+(urgent?'var(--urgent)':'var(--gold)');
+    sheet.querySelectorAll('[data-u]').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel');
+    if(sendBtn) sendBtn.disabled=false;
   });
   sheet.querySelectorAll('#cond button').forEach(b=>b.onclick=()=>{
     cond=b.dataset.c;
@@ -1423,6 +1431,7 @@ function issueSheet(opts){
     b.classList.add('on'); if(cond==='unusable')b.classList.add('bad');
   });
   sheet.querySelector('[data-send]').onclick=async()=>{
+    if(urgent===null) return;
     const note=sheet.querySelector('.note').value.trim();
     const machineCode=fixedMachine?opts.machineCode:(sheet.querySelector('#mach')?sheet.querySelector('#mach').value:(editing?e.machineCode:''));
     const unitSel=sheet.querySelector('#unit');
