@@ -27,9 +27,9 @@
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  line-height:1.4;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased;overflow:hidden}
+  line-height:1.4;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased;overflow:hidden;position:fixed;inset:0;width:100%}
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
-#app{max-width:520px;margin:0 auto;height:100vh;height:100dvh;height:var(--app-height,100dvh);display:flex;flex-direction:column;position:relative;overflow:hidden}
+#app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden}
 .screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 12px}
 .pad{padding-left:16px;padding-right:16px}
 
@@ -228,6 +228,7 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .icard .im{font-weight:700;font-size:1rem}
 .icard .imeta{font-size:.76rem;color:var(--muted);margin-top:3px}
 .icard .inote{font-size:.9rem;margin-top:6px;color:var(--ink)}
+.txtag{font-size:.72em;opacity:.55;vertical-align:baseline;white-space:nowrap}
 .icard .chev{margin-left:auto;color:var(--muted);align-self:center}
 .icard.cleared .im,.icard.cleared .inote{color:var(--muted)}
 .prio-h{display:flex;align-items:center;gap:8px;margin:20px 16px 8px;color:var(--bad);font-weight:800;font-size:.82rem;letter-spacing:.05em;text-transform:uppercase}
@@ -430,6 +431,7 @@ const EXTRA = {
   "iss.machine":{en:"Machine",es:"Máquina"},
   "iss.unit":{en:"Unit",es:"Unidad"},
   "iss.other":{en:"Other",es:"Otro"},
+  "iss.chooseMachine":{en:"Choose a machine…",es:"Elige una máquina…"},
   "iss.create":{en:"Create issue",es:"Crear problema"},
   "iss.normalFull":{en:"Non-Urgent - just log it for later",es:"No urgente - solo anotarlo para después"},
   "iss.pickOne":{en:"Tap one — required",es:"Toca una — requerido"},
@@ -483,10 +485,48 @@ function t(key){
   return (lang==='es' ? (s.es||s.en) : s.en) || key;
 }
 function taskText(tk){ return (lang==='es' && tk.es) ? tk.es : tk.en; }
-/* content(): a {en,es} object renders in the viewer's language; a plain string shows verbatim (typed notes are never machine-translated) */
+/* content(): a {en,es} object renders in the viewer's language; a plain string shows verbatim.
+   App-generated log lines are stored as {en,es} (always exact). Free-typed notes are plain
+   strings tagged with the author's language and machine-translated on the fly by autoTx(). */
 function content(v){ if(v==null) return ''; if(typeof v==='object') return v[lang] || v.en || ''; return v; }
 /* both(key): snapshot a wording key as {en,es} so app-generated log lines switch language for each viewer */
 function both(key){ const s=(S.uiText&&S.uiText[key])||EXTRA[key]||{en:key,es:key}; return {en:s.en, es:s.es||s.en}; }
+
+/* ---- on-the-fly translation of free-typed notes (MyMemory, free, no key) ----
+   Typed text is stored with the author's language. When a reader's language differs,
+   we fetch a rough translation and swap it in. Results are cached; the original is
+   the fallback on any error. Trade terms may translate imperfectly — hence the 🌐 tag. */
+const _txCache={};
+async function translateText(text, from, to){
+  text=(text||'').trim();
+  if(!text || !from || !to || from===to || text.length>480) return text;
+  const key=from+'|'+to+'|'+text;
+  if(key in _txCache) return _txCache[key];
+  try{
+    const r=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+from+'|'+to);
+    const j=await r.json();
+    let out=text;
+    if(j&&j.responseData&&typeof j.responseData.translatedText==='string'&&(j.responseStatus==200||j.responseStatus==='200')) out=j.responseData.translatedText;
+    if(/MYMEMORY WARNING|INVALID|QUERY LENGTH LIMIT/i.test(out)) out=text;
+    _txCache[key]=out;
+    return out;
+  }catch(e){ return text; }
+}
+/* Translate the text inside el into the reader's language, in place, if the source differs. */
+function autoTx(el, text, srcLang){
+  if(!el || typeof text!=='string') return;
+  const to=lang;
+  if(!srcLang || srcLang===to) return;
+  translateText(text, srcLang, to).then(tx=>{
+    if(tx && tx!==text){
+      el.textContent=tx;
+      const tag=document.createElement('span');
+      tag.className='txtag'; tag.textContent=' 🌐';
+      tag.title=(to==='es'?'Traducido automáticamente':'Auto-translated');
+      el.appendChild(tag);
+    }
+  });
+}
 
 /* ================= date helpers (America/Chicago) ================= */
 function chiDateKey(d=new Date()){ return new Intl.DateTimeFormat('en-CA',{timeZone:TZ}).format(d); }
@@ -768,7 +808,7 @@ function toggleCheck(task){
 }
 async function createIssue(data){
   try{
-    return await addDoc(collection(db,'issues'),{...data,byId:S.me.id,by:S.me.name,at:serverTimestamp(),status:'open'});
+    return await addDoc(collection(db,'issues'),{...data,byId:S.me.id,by:S.me.name,lang,at:serverTimestamp(),status:'open'});
   }catch(e){ writeFail(e); }
 }
 async function compressImage(file){
@@ -806,7 +846,7 @@ function photoViewer(dataUrl){
   modalHost.innerHTML=''; modalHost.appendChild(bg);
 }
 async function addIssueNote(iid,text){
-  try{ await addDoc(collection(db,'issues',iid,'notes'),{byId:S.me.id,by:S.me.name,at:serverTimestamp(),text}); }
+  try{ await addDoc(collection(db,'issues',iid,'notes'),{byId:S.me.id,by:S.me.name,lang,at:serverTimestamp(),text}); }
   catch(e){ writeFail(e); }
 }
 async function setUsable(issue,val){
@@ -1232,6 +1272,7 @@ function renderIssues(){
         <span class="inote">${(i.note||'').slice(0,140)}</span>
       </span><span class="chev">›</span></button>`);
     c.onclick=()=>{S.viewIssue=i.iid;S.notesFor=null;render();window.scrollTo(0,0);};
+    autoTx(c.querySelector('.inote'), (i.note||'').slice(0,140), i.lang);
     return c;
   }
   if(down.length){
@@ -1282,7 +1323,8 @@ function renderIssueDetail(){
     ${i.taskId?`<div class="row"><span class="k">${t('iss.reported')}</span><span class="t-id">${i.taskId}</span></div>`:''}
     <div class="row"><span class="k">${t('iss.reportedby')}</span><span>${i.by} · ${fmtWhen(i.at)}</span></div>
     ${i.urgent?`<div class="row"><span class="k">⚠️</span><span style="color:var(--urgent);font-weight:700">${lang==='es'?'Urgente':'Urgent'}</span></div>`:''}
-    <div style="padding:14px 0;font-size:1rem">${i.note||''}</div></div>`));
+    <div class="tx-desc" style="padding:14px 0;font-size:1rem">${i.note||''}</div></div>`));
+  { const d=s.querySelector('.tx-desc'); autoTx(d, i.note||'', i.lang); }
   if(S.photos.length || i.status!=='cleared'){
     const pcard=$(`<div class="pad"><div class="field-lbl">📷 ${t('iss.photos')}</div><div class="photogrid" id="idphotos"></div></div>`);
     const grid=pcard.querySelector('#idphotos');
@@ -1310,7 +1352,11 @@ function renderIssueDetail(){
   const prog=$(`<div class="pad"><div class="field-lbl">${t('iss.progress')}</div><div class="prog" id="plog"></div></div>`);
   const log=prog.querySelector('#plog');
   if(!S.notes.length) log.appendChild($('<div class="muted" style="padding:8px 0;font-size:.9rem">—</div>'));
-  S.notes.forEach(n=>log.appendChild($(`<div class="pitem"><span style="flex:1"><span class="pwho">${n.by}</span> ${content(n.text)}<br><span class="pwhen">${fmtWhen(n.at)}</span></span></div>`)));
+  S.notes.forEach(n=>{
+    const it=$(`<div class="pitem"><span style="flex:1"><span class="pwho">${n.by}</span> <span class="ptext">${content(n.text)}</span><br><span class="pwhen">${fmtWhen(n.at)}</span></span></div>`);
+    if(typeof n.text==='string') autoTx(it.querySelector('.ptext'), n.text, n.lang);
+    log.appendChild(it);
+  });
   s.appendChild(prog);
   if(i.status!=='cleared'){
     const add=$(`<div class="pad"><textarea class="note" id="pnote" placeholder="${t('iss.addnote')}" style="min-height:56px"></textarea>
@@ -1376,7 +1422,7 @@ function issueSheet(opts){
     <h3>${editing?t('iss.editTitle'):t('issue.title')}</h3>
     ${(!editing&&opts.taskLabel)?`<div class="sub">${opts.taskId} · ${opts.taskLabel}</div>`:`<div class="sub">${shopSub()}</div>`}
     ${fixedMachine?'':`<div class="field-lbl">${t('iss.whichMachine')}</div>
-      <select class="selbox" id="mach">${sorted.map(mm=>`<option value="${mm.code}" ${curMachine===mm.code?'selected':''}>${pretty(mm.name)}</option>`).join('')}<option value="OTHER" ${curMachine==='OTHER'?'selected':''}>${t('iss.other')}</option></select>`}
+      <select class="selbox" id="mach"><option value="" disabled ${curMachine?'':'selected'}>${t('iss.chooseMachine')}</option>${sorted.map(mm=>`<option value="${mm.code}" ${curMachine===mm.code?'selected':''}>${pretty(mm.name)}</option>`).join('')}<option value="OTHER" ${curMachine==='OTHER'?'selected':''}>${t('iss.other')}</option></select>`}
     <div id="unitWrap"></div>
     <div class="field-lbl">${t('issue.how')}</div>
     ${editing?'':`<div class="opt-hint">${t('iss.pickOne')}</div>`}
@@ -1416,14 +1462,19 @@ function issueSheet(opts){
   }
   fillUnits(fixedMachine?opts.machineCode:(sheet.querySelector('#mach')&&sheet.querySelector('#mach').value), editing?e.unit:'');
   const machSel=sheet.querySelector('#mach');
-  if(machSel) machSel.onchange=()=>fillUnits(machSel.value,'');
   const sendBtn=sheet.querySelector('[data-send]');
+  function checkReady(){
+    if(!sendBtn) return;
+    const machOk = editing || fixedMachine || (machSel ? !!machSel.value : true);
+    sendBtn.disabled = !(machOk && urgent!==null);
+  }
+  if(machSel) machSel.onchange=()=>{ fillUnits(machSel.value,''); checkReady(); };
   if(editing){ const ub=sheet.querySelector(`[data-u="${e.urgent?1:0}"]`); if(ub) ub.classList.add('sel'); }
   sheet.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>{
     urgent=b.dataset.u==='1';
     sheet.querySelectorAll('[data-u]').forEach(x=>x.classList.remove('sel'));
     b.classList.add('sel');
-    if(sendBtn) sendBtn.disabled=false;
+    checkReady();
   });
   sheet.querySelectorAll('#cond button').forEach(b=>b.onclick=()=>{
     cond=b.dataset.c;
@@ -1434,6 +1485,7 @@ function issueSheet(opts){
     if(urgent===null) return;
     const note=sheet.querySelector('.note').value.trim();
     const machineCode=fixedMachine?opts.machineCode:(sheet.querySelector('#mach')?sheet.querySelector('#mach').value:(editing?e.machineCode:''));
+    if(!machineCode) return;
     const unitSel=sheet.querySelector('#unit');
     const unit=(unitSel&&unitSel.value)?unitSel.value:null;
     if(editing){
