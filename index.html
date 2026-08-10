@@ -29,7 +29,7 @@ body{background:var(--bg);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   line-height:1.4;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased;overflow:hidden}
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
-#app{max-width:520px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;position:relative;overflow:hidden}
+#app{max-width:520px;margin:0 auto;height:100vh;height:100dvh;height:var(--app-height,100dvh);display:flex;flex-direction:column;position:relative;overflow:hidden}
 .screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 12px}
 .pad{padding-left:16px;padding-right:16px}
 
@@ -390,6 +390,7 @@ const EXTRA = {
   "cal.filterPerson":{en:"Anyone",es:"Cualquiera"},
   "cal.roundsPct":{en:"of daily rounds done",es:"de rondas diarias hechas"},
   "cal.missedDays":{en:"days with misses",es:"días con faltas"},
+  "cal.dailyRounds":{en:"daily rounds scheduled",es:"rondas diarias programadas"},
   "cal.due":{en:"due",es:"pend."},
   "st.done":{en:"Done",es:"Hecho"},
   "st.missed":{en:"Missed",es:"Omitida"},
@@ -401,8 +402,9 @@ const EXTRA = {
   "iss.head":{en:"Issues",es:"Problemas"},
   "iss.new":{en:"+ New",es:"+ Nuevo"},
   "iss.priority":{en:"Priority — urgent or down",es:"Prioridad — urgente o fuera de servicio"},
-  "iss.tierDown":{en:"Machine Down",es:"Máquina fuera de servicio"},
-  "iss.tierWorking":{en:"Machine Working",es:"Máquina funcionando"},
+  "iss.tierDown":{en:"Urgent - Machine Down",es:"Urgente - Máquina fuera de servicio"},
+  "iss.tierWorking":{en:"Urgent - Machine Working",es:"Urgente - Máquina funcionando"},
+  "iss.tierNonUrgent":{en:"Non-Urgent Issues",es:"Problemas no urgentes"},
   "iss.open":{en:"Open",es:"Abiertos"},
   "iss.cleared":{en:"Cleared",es:"Resueltos"},
   "iss.none":{en:"No issues right now.",es:"No hay problemas ahora."},
@@ -592,6 +594,13 @@ const $=(h)=>{const tpl=document.createElement('template');tpl.innerHTML=h.trim(
 onAuthStateChanged(auth, user=>{
   if(user){ S.uid=user.uid; startListeners(); }
 });
+/* iOS PWA: trust window.innerHeight over CSS viewport units so the bottom nav sits flush */
+function setAppHeight(){ document.documentElement.style.setProperty('--app-height', window.innerHeight+'px'); }
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', ()=>setTimeout(setAppHeight,120));
+if(window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
+
 signInAnonymously(auth).catch(e=>{
   document.getElementById('loadmsg').textContent='Connection failed: '+e.code+' — check internet and reload.';
 });
@@ -1165,15 +1174,16 @@ function renderDayDetail(k){
   const host=wrap.querySelector('#dt');
   const items=[];
   const dueTasks = S.tasks.filter(tk=>tk.due===k && calMatchM(tk.code));
+  let roundsSummary=0;
   if(isFuture){
-    dailyMTdueOn(k).filter(tk=>calMatchM(tk.code)).forEach(tk=>items.push([tk,'due',null]));
-    dueTasks.forEach(tk=>items.push([tk,'due',null]));
+    dueTasks.forEach(tk=>items.push([tk,'due',null]));               // deadlines listed individually
+    roundsSummary = dailyMTdueOn(k).filter(tk=>calMatchM(tk.code)).length;  // daily rounds summarized
   } else {
     Object.keys(doneMap).forEach(id=>{ const e=doneMap[id]||{}; if(S.fPerson&&e.byId!==S.fPerson)return; const tk=S.byId[id]; if(!tk||calMatchM(tk.code)) items.push([tk||{id,code:'?',en:id},'done',e]); });
     dailyMTdueOn(k).filter(tk=>calMatchM(tk.code)).forEach(tk=>{ if(!doneMap[tk.id]) items.push([tk, isToday?'due':'missed', null]); });
     dueTasks.forEach(tk=>{ if(!doneMap[tk.id]) items.push([tk, isToday?'due':'missed', null]); });
   }
-  if(!items.length){ host.appendChild($(`<div class="muted" style="padding:16px">${t('cal.dayNothing')}</div>`)); return wrap; }
+  if(!items.length && !roundsSummary){ host.appendChild($(`<div class="muted" style="padding:16px">${t('cal.dayNothing')}</div>`)); return wrap; }
   items.sort((a,b)=>String(a[0].code).localeCompare(String(b[0].code)));
   items.slice(0,80).forEach(([tk,st,info])=>{
     host.appendChild($(`<div class="dtask">
@@ -1181,6 +1191,7 @@ function renderDayDetail(k){
       <span style="flex:1;min-width:0"><span class="dt-m">${mName(tk.code)}</span><br>${taskText(tk)}${info?` <span class="muted" style="font-size:.78em">· ${info.by}${info.atStr?' '+info.atStr:''}</span>`:''}</span></div>`));
   });
   if(items.length>80) host.appendChild($(`<div class="muted" style="padding:12px 16px">+${items.length-80}…</div>`));
+  if(roundsSummary) host.appendChild($(`<div class="dtask" style="color:var(--muted)"><span class="pill due">+${roundsSummary}</span><span style="flex:1">${t('cal.dailyRounds')}</span></div>`));
   return wrap;
 }
 
@@ -1202,9 +1213,9 @@ function renderIssues(){
   const bar=$(`<div class="issbar"><div class="h">${t('iss.head')}</div><button class="newiss">${t('iss.new')}</button></div>`);
   bar.querySelector('.newiss').onclick=()=>issueSheet({});
   s.appendChild(bar);
-  const down=S.issues.filter(i=>i.status==='open'&&i.usable==='unusable');
-  const working=S.issues.filter(i=>i.status==='open'&&i.usable!=='unusable'&&i.urgent);
-  const open=S.issues.filter(i=>i.status==='open'&&i.usable!=='unusable'&&!i.urgent);
+  const down=S.issues.filter(i=>i.status==='open'&&i.urgent&&i.usable==='unusable');
+  const working=S.issues.filter(i=>i.status==='open'&&i.urgent&&i.usable!=='unusable');
+  const open=S.issues.filter(i=>i.status==='open'&&!i.urgent);
   const cleared=S.issues.filter(i=>i.status==='cleared').slice(0,30);
   function card(i){
     const cls=i.status==='cleared'?'cleared':(i.usable==='unusable'?'down':'');
@@ -1226,7 +1237,7 @@ function renderIssues(){
     s.appendChild($(`<div class="work-h">⚠️ ${t('iss.tierWorking')}</div>`));
     const w=$('<div class="work-wrap"></div>'); working.forEach(i=>w.appendChild(card(i))); s.appendChild(w);
   }
-  s.appendChild($(`<h2 class="sec pad">${t('iss.open')} · ${open.length}</h2>`));
+  s.appendChild($(`<h2 class="sec pad">${t('iss.tierNonUrgent')} · ${open.length}</h2>`));
   if(open.length){ const st=$('<div class="stack pad"></div>'); open.forEach(i=>st.appendChild(card(i))); s.appendChild(st); }
   else s.appendChild($(`<div class="pad muted" style="padding-bottom:8px">${t('iss.none')}</div>`));
   if(cleared.length){
