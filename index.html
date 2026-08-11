@@ -231,6 +231,9 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .icard .im{font-weight:700;font-size:1rem}
 .icard .imeta{font-size:.76rem;color:var(--muted);margin-top:3px}
 .icard .inote{font-size:.9rem;margin-top:6px;color:var(--ink)}
+.icard .lastnote{display:block;margin-top:6px;font-size:.85rem;color:var(--ink)}
+.icard .lastnote .ll{font-weight:800;font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:var(--gold-deep)}
+.icard.cleared .lastnote,.icard.cleared .lastnote .ll{color:var(--muted)}
 .txtag{font-size:.72em;opacity:.55;vertical-align:baseline;white-space:nowrap}
 .icard .chev{margin-left:auto;color:var(--muted);align-self:center}
 .icard.cleared .im,.icard.cleared .inote{color:var(--muted)}
@@ -438,6 +441,7 @@ const EXTRA = {
   "iss.unit":{en:"Unit",es:"Unidad"},
   "iss.other":{en:"Other",es:"Otro"},
   "iss.chooseMachine":{en:"Choose a machine…",es:"Elige una máquina…"},
+  "iss.latest":{en:"Latest note",es:"Última nota"},
   "iss.create":{en:"Create issue",es:"Crear problema"},
   "iss.normalFull":{en:"Non-Urgent - just log it for later",es:"No urgente - solo anotarlo para después"},
   "iss.pickOne":{en:"Tap one — required",es:"Toca una — requerido"},
@@ -855,7 +859,11 @@ function photoViewer(dataUrl){
 }
 async function addIssueNote(iid,text){
   try{ await addDoc(collection(db,'issues',iid,'notes'),{byId:S.me.id,by:S.me.name,lang,at:serverTimestamp(),text}); }
-  catch(e){ writeFail(e); }
+  catch(e){ writeFail(e); return; }
+  // Denormalize the latest note onto the issue so the Issues cards can preview it.
+  // Best-effort: if the lastNote rule isn't published yet, the note still saved above
+  // and the card simply won't show the preview line — nothing breaks.
+  try{ await updateDoc(doc(db,'issues',iid),{lastNote:text,lastNoteLang:(typeof text==='string'?lang:null)}); }catch(e){}
 }
 async function setUsable(issue,val){
   try{
@@ -1278,9 +1286,11 @@ function renderIssues(){
         <span class="im">${mName(i.machineCode)}${i.unit?` <span style="font-weight:600;color:var(--muted);font-size:.85em">· ${i.unit}</span>`:''}</span>
         <span class="imeta">${i.urgent?'⚠️ ':''}${i.usable==='unusable'?t('iss.unusable')+' · ':''}${t('iss.reportedby')} ${i.by} · ${fmtWhen(i.at)}</span>
         <span class="inote">${(i.note||'').slice(0,140)}</span>
+        ${i.lastNote?`<span class="lastnote"><span class="ll">${t('iss.latest')}:</span> <span class="lt">${(content(i.lastNote)||'').slice(0,140)}</span></span>`:''}
       </span><span class="chev">›</span></button>`);
     c.onclick=()=>{S.viewIssue=i.iid;S.notesFor=null;render();window.scrollTo(0,0);};
     autoTx(c.querySelector('.inote'), (i.note||'').slice(0,140), i.lang);
+    if(i.lastNote && typeof i.lastNote==='string') autoTx(c.querySelector('.lt'), i.lastNote.slice(0,140), i.lastNoteLang);
     return c;
   }
   if(down.length){
