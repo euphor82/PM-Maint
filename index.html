@@ -252,6 +252,8 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .prog .pitem{display:flex;gap:10px;padding:8px 0;font-size:.9rem}
 .prog .pitem .pwho{font-weight:700}
 .prog .pitem .pwhen{color:var(--muted);font-size:.75rem}
+.prog .pitem .pedit{font-size:.72rem;font-weight:700;color:var(--gold-deep);padding:2px 4px;margin-left:2px}
+.prog .pitem .pedit.pdel{color:var(--bad)}
 .seg{display:flex;gap:8px;margin:6px 0 14px}
 .seg button{flex:1;height:48px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:.9rem}
 .seg button.on{border-color:var(--gold);background:var(--gold-soft);color:var(--gold-deep)}
@@ -442,6 +444,8 @@ const EXTRA = {
   "iss.other":{en:"Other",es:"Otro"},
   "iss.chooseMachine":{en:"Choose a machine…",es:"Elige una máquina…"},
   "iss.latest":{en:"Latest note",es:"Última nota"},
+  "iss.edited":{en:"edited",es:"editado"},
+  "iss.delNoteConfirm":{en:"Delete this note?",es:"¿Eliminar esta nota?"},
   "iss.create":{en:"Create issue",es:"Crear problema"},
   "iss.normalFull":{en:"Non-Urgent - just log it for later",es:"No urgente - solo anotarlo para después"},
   "iss.pickOne":{en:"Tap one — required",es:"Toca una — requerido"},
@@ -864,6 +868,58 @@ async function addIssueNote(iid,text){
   // Best-effort: if the lastNote rule isn't published yet, the note still saved above
   // and the card simply won't show the preview line — nothing breaks.
   try{ await updateDoc(doc(db,'issues',iid),{lastNote:text,lastNoteLang:(typeof text==='string'?lang:null)}); }catch(e){}
+}
+// Keep the card's denormalized preview in sync when the LATEST note is edited/deleted.
+// Capture "was this the latest note?" from S.notes BEFORE the write (the snapshot may
+// have already mutated S.notes by the time we run). Best-effort — swallow failures.
+async function syncLastNoteAfter(issue, wasLast, fallbackNote, newText){
+  if(!wasLast) return;
+  let payload;
+  if(newText!=null){ payload={lastNote:newText, lastNoteLang:lang}; }
+  else if(fallbackNote){ payload={lastNote:fallbackNote.text, lastNoteLang:(typeof fallbackNote.text==='string'?(fallbackNote.lang||null):null)}; }
+  else { payload={lastNote:deleteField(), lastNoteLang:deleteField()}; }
+  try{ await updateDoc(doc(db,'issues',issue.iid), payload); }catch(e){}
+}
+function startEditNote(issue, n, it){
+  const orig = typeof n.text==='string' ? n.text : '';
+  const wasLast = S.notes.length && S.notes[S.notes.length-1].nid===n.nid;
+  it.innerHTML='';
+  const wrap=$(`<span style="flex:1">
+    <textarea class="note nedit-ta" style="min-height:52px"></textarea>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn-ghost nedit-save" style="background:var(--gold-soft);color:var(--gold-deep);margin-top:0;flex:1">${t('iss.save')}</button>
+      <button class="btn-ghost nedit-cancel" style="margin-top:0;flex:1">${t('task.close')}</button>
+    </div></span>`);
+  it.appendChild(wrap);
+  const ta=wrap.querySelector('textarea'); ta.value=orig; ta.focus();
+  wrap.querySelector('.nedit-cancel').onclick=()=>render();
+  wrap.querySelector('.nedit-save').onclick=async()=>{
+    const v=ta.value.trim();
+    if(!v || v===orig){ render(); return; }
+    const btn=wrap.querySelector('.nedit-save'); btn.disabled=true; btn.textContent='…';
+    try{ await updateDoc(doc(db,'issues',issue.iid,'notes',n.nid),{text:v,lang,editedAt:serverTimestamp()}); }
+    catch(e){ writeFail(e); render(); return; }
+    await syncLastNoteAfter(issue, wasLast, null, v);   // snapshot re-renders
+  };
+}
+function confirmDeleteNote(issue, n, it){
+  const wasLast = S.notes.length && S.notes[S.notes.length-1].nid===n.nid;
+  const fallback = wasLast ? S.notes[S.notes.length-2] : null;
+  it.innerHTML='';
+  const wrap=$(`<span style="flex:1">
+    <span style="font-size:.88rem">${t('iss.delNoteConfirm')}</span>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn-ghost ndel-yes" style="background:var(--bad-soft);color:var(--bad);margin-top:0;flex:1">${t('iss.delete')}</button>
+      <button class="btn-ghost ndel-no" style="margin-top:0;flex:1">${t('task.close')}</button>
+    </div></span>`);
+  it.appendChild(wrap);
+  wrap.querySelector('.ndel-no').onclick=()=>render();
+  wrap.querySelector('.ndel-yes').onclick=async()=>{
+    const btn=wrap.querySelector('.ndel-yes'); btn.disabled=true; btn.textContent='…';
+    try{ await deleteDoc(doc(db,'issues',issue.iid,'notes',n.nid)); }
+    catch(e){ writeFail(e); render(); return; }
+    await syncLastNoteAfter(issue, wasLast, fallback, null);   // snapshot re-renders
+  };
 }
 async function setUsable(issue,val){
   try{
@@ -1320,7 +1376,7 @@ function renderIssueDetail(){
     S.notesFor=i.iid; S.notes=[];
     if(notesUnsub)notesUnsub();
     notesUnsub=onSnapshot(query(collection(db,'issues',i.iid,'notes'),orderBy('at','asc')),qs=>{
-      const l=[];qs.forEach(d=>l.push(d.data({serverTimestamps:'estimate'})));S.notes=l;render();
+      const l=[];qs.forEach(d=>l.push({nid:d.id, ...d.data({serverTimestamps:'estimate'})}));S.notes=l;render();
     });
   }
   if(S.photosFor!==i.iid){
@@ -1371,8 +1427,11 @@ function renderIssueDetail(){
   const log=prog.querySelector('#plog');
   if(!S.notes.length) log.appendChild($('<div class="muted" style="padding:8px 0;font-size:.9rem">—</div>'));
   S.notes.forEach(n=>{
-    const it=$(`<div class="pitem"><span style="flex:1"><span class="pwho">${n.by}</span> <span class="ptext">${content(n.text)}</span><br><span class="pwhen">${fmtWhen(n.at)}</span></span></div>`);
+    const mine = i.status!=='cleared' && typeof n.text==='string' && S.me && n.byId===S.me.id;
+    const it=$(`<div class="pitem"><span style="flex:1"><span class="pwho">${n.by}</span> <span class="ptext">${content(n.text)}</span><br><span class="pwhen">${fmtWhen(n.at)}${n.editedAt?' · '+t('iss.edited'):''}</span>${mine?` <button class="pedit" data-a="e">${t('iss.edit')}</button> <button class="pedit pdel" data-a="d">${t('iss.delete')}</button>`:''}</span></div>`);
     if(typeof n.text==='string') autoTx(it.querySelector('.ptext'), n.text, n.lang);
+    const eb=it.querySelector('[data-a="e"]'); if(eb) eb.onclick=()=>startEditNote(i,n,it);
+    const delb=it.querySelector('[data-a="d"]'); if(delb) delb.onclick=()=>confirmDeleteNote(i,n,it);
     log.appendChild(it);
   });
   s.appendChild(prog);
