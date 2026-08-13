@@ -47,6 +47,9 @@ button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;backgrou
 .lang button.on{background:#fff;color:var(--charcoal)}
 
 h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gold-deep);margin:22px 4px 10px;font-weight:800}
+button.sec{background:none;border:none;text-align:left;font-family:inherit}
+.duesoon-toggle{display:flex;align-items:center;gap:8px;width:100%;margin:22px 4px 10px}
+.duesoon-toggle .ds-chev{margin-left:auto;font-size:.9rem}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
 .stack{display:flex;flex-direction:column;gap:12px}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:999px}
@@ -283,6 +286,10 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .lock-note{text-align:center;color:var(--muted);font-size:.82rem;margin-top:10px}
 .field-lbl{font-weight:700;font-size:.82rem;color:var(--ink);margin:14px 0 6px}
 .selbox{width:100%;height:50px;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;font-size:1rem;background:#fff;font-family:inherit;color:var(--ink)}
+.issue-tools{display:flex;gap:8px;margin:6px 0 2px}
+.issue-tools .isearch{flex:1;min-width:0;height:44px}
+.issue-tools .ifm{flex:0 0 42%;height:44px;padding:0 8px}
+.cl-tag{font-size:.66em;font-weight:800;color:var(--good);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
 
 .radio{display:flex;align-items:center;gap:12px;width:100%;padding:15px 14px;border-radius:14px;border:1.5px solid var(--line);background:#fff;text-align:left;margin-bottom:10px;font-weight:600}
 .radio .dotr{width:24px;height:24px;border-radius:999px;border:2px solid var(--muted);flex:none;display:grid;place-items:center}
@@ -475,6 +482,11 @@ const EXTRA = {
   "iss.other":{en:"Other",es:"Otro"},
   "iss.chooseMachine":{en:"Choose a machine…",es:"Elige una máquina…"},
   "iss.latest":{en:"Latest note",es:"Última nota"},
+  "iss.search":{en:"Search issues…",es:"Buscar problemas…"},
+  "iss.allMachines":{en:"All machines",es:"Todas las máquinas"},
+  "iss.results":{en:"Results",es:"Resultados"},
+  "iss.noResults":{en:"No matching issues.",es:"Sin problemas coincidentes."},
+  "iss.clearedTag":{en:"Cleared",es:"Resuelto"},
   "iss.edited":{en:"edited",es:"editado"},
   "iss.delNoteConfirm":{en:"Delete this note?",es:"¿Eliminar esta nota?"},
   "iss.create":{en:"Create issue",es:"Crear problema"},
@@ -619,6 +631,7 @@ const S = {
   histMachine:'', histSearch:'', histTask:null, histEvents:[], histLoading:false, histMisses:false,
   pinFor:null, pinBuf:'', pinErr:'', pinBusy:false,
   calMonth:null, fMachine:'', fFreq:'', fStatus:'', fPerson:'', calDay:null, calFilter:'',
+  showDueSoon:(localStorage.getItem('pmDueSoon')==='1'), issueSearch:'', issueFMachine:'',
   monthDays:{}, monthLoaded:'',
   offline:false
 };
@@ -1129,9 +1142,13 @@ function renderToday(){
     <span style="font-weight:800;color:var(--good)">${sd}</span><span style="font-weight:800">/${st}</span>
     <span class="muted"> ${t('cad.'+S.tf).toLowerCase()} · ${t('home.period')}</span>${full?' <span style="color:var(--good);font-weight:800">✓</span>':''}</div>`));
 
-  const dueSoon=S.tasks.filter(tk=>tk.due && !isDoneNow(tk) && daysBetween(S.todayKey,tk.due)<=14).sort((a,b)=>a.due<b.due?-1:1);
+  const dueSoon=S.tasks.filter(tk=>tk.due && !isDoneNow(tk) && daysBetween(S.todayKey,tk.due)<=30).sort((a,b)=>a.due<b.due?-1:1);
   if(dueSoon.length){
-    s.appendChild($(`<h2 class="sec pad">${t('home.duesoon')}</h2>`));
+    const open=S.showDueSoon;
+    const hdr=$(`<button class="sec pad duesoon-toggle">${t('home.duesoon')} · ${dueSoon.length}<span class="ds-chev">${open?'▾':'▸'}</span></button>`);
+    hdr.onclick=()=>{ S.showDueSoon=!S.showDueSoon; localStorage.setItem('pmDueSoon',S.showDueSoon?'1':'0'); render(); };
+    s.appendChild(hdr);
+    if(open){
     const stk=$('<div class="stack pad"></div>');
     dueSoon.slice(0,12).forEach(tk=>{
       const dm=dueMeta(tk), mm=S.machines.find(x=>x.code===tk.code);
@@ -1142,6 +1159,7 @@ function renderToday(){
       stk.appendChild(card);
     });
     s.appendChild(stk);
+    }
   }
   s.appendChild(sortControl());
   s.appendChild($(`<h2 class="sec pad">${t('home.machines')}</h2>`));
@@ -1499,16 +1517,27 @@ function renderIssues(){
   const bar=$(`<div class="issbar"><div class="h">${t('iss.head')}</div><button class="newiss">${t('iss.new')}</button></div>`);
   bar.querySelector('.newiss').onclick=()=>issueSheet({});
   s.appendChild(bar);
-  const down=S.issues.filter(i=>i.status==='open'&&i.urgent&&i.usable==='unusable');
-  const working=S.issues.filter(i=>i.status==='open'&&i.urgent&&i.usable!=='unusable');
-  const open=S.issues.filter(i=>i.status==='open'&&!i.urgent);
-  const cleared=S.issues.filter(i=>i.status==='cleared').slice(0,30);
+
+  // search (text) + filter by machine — covers cleared issues too (last 200 loaded)
+  const tools=$(`<div class="issue-tools pad">
+    <input id="isearch" class="selbox isearch" placeholder="${t('iss.search')}" autocomplete="off" autocapitalize="none">
+    <select id="ifm" class="selbox ifm"></select></div>`);
+  const inp=tools.querySelector('#isearch'); inp.value=S.issueSearch||'';
+  const fm=tools.querySelector('#ifm');
+  fm.appendChild($(`<option value="">${t('iss.allMachines')}</option>`));
+  [...new Set(S.issues.map(i=>i.machineCode).filter(Boolean))]
+    .map(code=>({code,name:mName(code)})).sort((a,b)=>a.name.localeCompare(b.name))
+    .forEach(mc=>fm.appendChild($(`<option value="${mc.code}" ${S.issueFMachine===mc.code?'selected':''}>${mc.name}</option>`)));
+  s.appendChild(tools);
+  const resultsHost=$('<div class="iss-results"></div>');
+  s.appendChild(resultsHost);
+
   function card(i){
     const cls=i.status==='cleared'?'cleared':(i.usable==='unusable'?'down':'');
     const c=$(`<button class="card icard ${cls}" style="border-radius:14px;margin:0">
       <span class="idot"></span>
       <span style="flex:1;min-width:0">
-        <span class="im">${mName(i.machineCode)}${i.unit?` <span style="font-weight:600;color:var(--muted);font-size:.85em">· ${i.unit}</span>`:''}</span>
+        <span class="im">${mName(i.machineCode)}${i.unit?` <span style="font-weight:600;color:var(--muted);font-size:.85em">· ${i.unit}</span>`:''}${i.status==='cleared'?` <span class="cl-tag">✓ ${t('iss.clearedTag')}</span>`:''}</span>
         <span class="imeta">${i.urgent?'⚠️ ':''}${i.usable==='unusable'?t('iss.unusable')+' · ':''}${t('iss.reportedby')} ${i.by} · ${fmtWhen(i.at)}</span>
         <span class="inote">${(i.note||'').slice(0,140)}</span>
         ${i.lastNote?`<span class="lastnote"><span class="ll">${t('iss.latest')}:</span> <span class="lt">${(content(i.lastNote)||'').slice(0,140)}</span></span>`:''}
@@ -1518,21 +1547,39 @@ function renderIssues(){
     if(i.lastNote && typeof i.lastNote==='string') autoTx(c.querySelector('.lt'), i.lastNote.slice(0,140), i.lastNoteLang);
     return c;
   }
-  if(down.length){
-    s.appendChild($(`<div class="prio-h">⚠️ ${t('iss.tierDown')}</div>`));
-    const w=$('<div class="prio-wrap"></div>'); down.forEach(i=>w.appendChild(card(i))); s.appendChild(w);
+
+  function paintResults(){
+    resultsHost.innerHTML='';
+    const q=(S.issueSearch||'').trim().toLowerCase();
+    const fMach=S.issueFMachine||'';
+    if(q||fMach){
+      const res=S.issues.filter(i=>{
+        if(fMach && i.machineCode!==fMach) return false;
+        if(!q) return true;
+        const hay=[mName(i.machineCode), i.machineName, i.unit, i.note, i.by,
+          (typeof i.lastNote==='string'?i.lastNote:''), i.taskId].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+      resultsHost.appendChild($(`<h2 class="sec pad">${t('iss.results')} · ${res.length}</h2>`));
+      if(!res.length){ resultsHost.appendChild($(`<div class="pad muted" style="padding-bottom:8px">${t('iss.noResults')}</div>`)); return; }
+      const st=$('<div class="stack pad"></div>'); res.forEach(i=>st.appendChild(card(i))); resultsHost.appendChild(st);
+      return;
+    }
+    // default tiered view
+    const down=S.issues.filter(i=>i.status==='open'&&i.urgent&&i.usable==='unusable');
+    const working=S.issues.filter(i=>i.status==='open'&&i.urgent&&i.usable!=='unusable');
+    const open=S.issues.filter(i=>i.status==='open'&&!i.urgent);
+    const cleared=S.issues.filter(i=>i.status==='cleared').slice(0,30);
+    if(down.length){ resultsHost.appendChild($(`<div class="prio-h">⚠️ ${t('iss.tierDown')}</div>`)); const w=$('<div class="prio-wrap"></div>'); down.forEach(i=>w.appendChild(card(i))); resultsHost.appendChild(w); }
+    if(working.length){ resultsHost.appendChild($(`<div class="work-h">⚠️ ${t('iss.tierWorking')}</div>`)); const w=$('<div class="work-wrap"></div>'); working.forEach(i=>w.appendChild(card(i))); resultsHost.appendChild(w); }
+    resultsHost.appendChild($(`<h2 class="sec pad">${t('iss.tierNonUrgent')} · ${open.length}</h2>`));
+    if(open.length){ const st=$('<div class="stack pad"></div>'); open.forEach(i=>st.appendChild(card(i))); resultsHost.appendChild(st); }
+    else resultsHost.appendChild($(`<div class="pad muted" style="padding-bottom:8px">${t('iss.none')}</div>`));
+    if(cleared.length){ resultsHost.appendChild($(`<h2 class="sec pad">${t('iss.cleared')} · ${cleared.length}</h2>`)); const st=$('<div class="stack pad"></div>'); cleared.forEach(i=>st.appendChild(card(i))); resultsHost.appendChild(st); }
   }
-  if(working.length){
-    s.appendChild($(`<div class="work-h">⚠️ ${t('iss.tierWorking')}</div>`));
-    const w=$('<div class="work-wrap"></div>'); working.forEach(i=>w.appendChild(card(i))); s.appendChild(w);
-  }
-  s.appendChild($(`<h2 class="sec pad">${t('iss.tierNonUrgent')} · ${open.length}</h2>`));
-  if(open.length){ const st=$('<div class="stack pad"></div>'); open.forEach(i=>st.appendChild(card(i))); s.appendChild(st); }
-  else s.appendChild($(`<div class="pad muted" style="padding-bottom:8px">${t('iss.none')}</div>`));
-  if(cleared.length){
-    s.appendChild($(`<h2 class="sec pad">${t('iss.cleared')} · ${cleared.length}</h2>`));
-    const st=$('<div class="stack pad"></div>'); cleared.forEach(i=>st.appendChild(card(i))); s.appendChild(st);
-  }
+  inp.oninput=()=>{ S.issueSearch=inp.value; paintResults(); };
+  fm.onchange=()=>{ S.issueFMachine=fm.value; paintResults(); };
+  paintResults();
   return s;
 }
 
