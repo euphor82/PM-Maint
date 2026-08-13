@@ -169,7 +169,11 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .cc{font-size:.58rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
 .cc.g{color:var(--good)} .cc.r{color:var(--bad)} .cc.b{color:var(--due)}
 .cc.z{opacity:.22}
-.due-dot{color:var(--gold-deep);font-weight:900;margin-left:1px}
+.due-dot{color:var(--due);font-weight:900;margin-left:1px}
+.due-dot.met{color:var(--good)} .due-dot.upcoming{color:var(--due)} .due-dot.overdue{color:var(--bad)}
+.cell.weekend{background:transparent;border-style:dashed}
+.cell.weekend .dnum{color:var(--muted);font-weight:600}
+.due-tag{font-size:.9em;vertical-align:middle}
 .dt{width:7px;height:7px;border-radius:2px}
 .dt.done{background:var(--good)} .dt.missed{background:var(--bad)} .dt.due{background:var(--due)}
 .cell.future .bignum{color:var(--due)}
@@ -643,6 +647,15 @@ function isDoneNow(task){
 function dailyMTdueOn(k){
   const wd=weekdayOfKey(k);
   return S.tasks.filter(task=>task.freq==='Daily'||(task.freq==='Mon & Thu'&&(wd==='Mon'||wd==='Thu')));
+}
+// Shop is closed weekends — no daily-rounds compliance expected on Sat/Sun.
+function isWeekend(k){ const wd=weekdayOfKey(k); return wd==='Sat'||wd==='Sun'; }
+// A due-dated task counts as met if it was completed within ~2 weeks before its
+// deadline, or any time on/after it (daysBetween(ld.date,due) = due − doneDate).
+function dueDoneNow(tk){
+  if(S.todayDone[tk.id]) return true;
+  const ld=S.lastDone[tk.id];
+  return !!ld && daysBetween(ld.date, tk.due) <= 14;
 }
 
 /* ================= boot ================= */
@@ -1212,16 +1225,22 @@ function renderMachine(){
 function calMatchM(code){ return !S.fMachine || code===S.fMachine; }
 function calCounts(k){
   const doneMap = k===S.todayKey ? S.todayDone : (S.monthDays[k]||{});
-  const isFuture=k>S.todayKey, isToday=k===S.todayKey;
+  const isFuture=k>S.todayKey, isToday=k===S.todayKey, weekend=isWeekend(k);
+  // green "done" = anything checked off that day (past/today)
   let done=0;
-  Object.keys(doneMap).forEach(id=>{ const e=doneMap[id]||{}; if(S.fPerson && e.byId!==S.fPerson) return; const tk=S.byId[id]; if(!tk||calMatchM(tk.code)) done++; });
-  const rounds = dailyMTdueOn(k).filter(tk=>calMatchM(tk.code));
+  if(!isFuture) Object.keys(doneMap).forEach(id=>{ const e=doneMap[id]||{}; if(S.fPerson && e.byId!==S.fPerson) return; const tk=S.byId[id]; if(!tk||calMatchM(tk.code)) done++; });
+  // red "missed" = daily rounds not done — worked weekdays in the past only (never weekends/today/future)
+  const rounds = weekend ? [] : dailyMTdueOn(k).filter(tk=>calMatchM(tk.code));
+  let missed=0;
+  if(!isFuture && !isToday && !weekend) missed = rounds.filter(tk=>!doneMap[tk.id]).length;
+  // deadlines (due-dated tasks) — shown on their date regardless of weekend/future
   const dueTasks = S.tasks.filter(tk=>tk.due===k && calMatchM(tk.code));
-  let missed=0, upcoming=0;
-  if(isFuture) upcoming = rounds.length + dueTasks.length;
-  else if(isToday) upcoming = rounds.filter(tk=>!doneMap[tk.id]).length + dueTasks.filter(tk=>!doneMap[tk.id]).length;
-  else missed = rounds.filter(tk=>!doneMap[tk.id]).length + dueTasks.filter(tk=>!doneMap[tk.id]).length;
-  return {done, missed, upcoming, hasDue:dueTasks.length>0, roundsTotal:rounds.length};
+  let dueState='none';
+  if(dueTasks.length){
+    const undone = dueTasks.filter(tk=>!dueDoneNow(tk));
+    dueState = !undone.length ? 'met' : ((isFuture||isToday) ? 'upcoming' : 'overdue');
+  }
+  return {done, missed, dueState, hasDue:dueTasks.length>0, roundsTotal:rounds.length, weekend};
 }
 function renderCalendar(){
   const s=$('<div class="screen"></div>');
@@ -1248,7 +1267,7 @@ function renderCalendar(){
   // month compliance stat (past days this month)
   const daysIn=new Date(Date.UTC(y,m,0)).getUTCDate();
   let mR=0,mDone=0,mMiss=0;
-  for(let d=1;d<=daysIn;d++){ const k=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; if(k<S.todayKey){ const c=calCounts(k); mR+=c.roundsTotal; mDone+=(c.roundsTotal-c.missed); if(c.missed>0)mMiss++; } }
+  for(let d=1;d<=daysIn;d++){ const k=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; if(k<S.todayKey && !isWeekend(k)){ const c=calCounts(k); mR+=c.roundsTotal; mDone+=(c.roundsTotal-c.missed); if(c.missed>0)mMiss++; } }
   const pct=mR?Math.round(100*mDone/mR):100;
   s.appendChild($(`<div class="pad" style="font-size:.9rem;margin:2px 0 6px"><span style="font-weight:800;color:${pct>=95?'var(--good)':pct>=80?'var(--due)':'var(--bad)'}">${pct}%</span> <span class="muted">${t('cal.roundsPct')}${mMiss?` · ${mMiss} ${t('cal.missedDays')}`:''}</span></div>`));
 
@@ -1262,14 +1281,15 @@ function renderCalendar(){
     const k=`${y}-${String(m).padStart(2,'0')}-${String(dnum).padStart(2,'0')}`;
     const isToday=k===S.todayKey, isFuture=k>S.todayKey;
     const c=calCounts(k);
-    let tint=''; if(!isFuture&&!isToday) tint = c.missed===0 ? 'cell-good' : 'cell-bad';
-    const cls=`cell ${isToday?'today':''} ${isFuture?'future':''} ${tint}`;
-    const cell=$(`<div class="${cls}"><div class="dnum">${dnum}${c.hasDue?'<span class="due-dot">•</span>':''}</div>
-      <div class="cc3">
+    let tint=''; if(!isFuture&&!isToday&&!c.weekend) tint = c.missed===0 ? 'cell-good' : 'cell-bad';
+    const showCounts = !isFuture && !c.weekend;   // done/missed only on worked weekdays, past+today
+    const cls=`cell ${isToday?'today':''} ${isFuture?'future':''} ${c.weekend?'weekend':''} ${tint}`;
+    const dueMark = c.hasDue ? `<span class="due-dot ${c.dueState}">•</span>` : '';
+    const counts = showCounts ? `<div class="cc3">
         <span class="cc g ${c.done?'':'z'}">●${c.done}</span>
         <span class="cc r ${c.missed?'':'z'}">●${c.missed}</span>
-        <span class="cc b ${c.upcoming?'':'z'}">●${c.upcoming}</span>
-      </div></div>`);
+      </div>` : '';
+    const cell=$(`<div class="${cls}"><div class="dnum">${dnum}${dueMark}</div>${counts}</div>`);
     cell.onclick=()=>{S.calDay=(S.calDay===k?null:k);render();};
     grid.appendChild(cell);
   }
@@ -1289,26 +1309,25 @@ function renderDayDetail(k){
     <div class="mhead"><div style="font-weight:800">${dateStr}</div></div>
     <div class="daytasks" id="dt"></div></div>`);
   const host=wrap.querySelector('#dt');
-  const items=[];
-  const dueTasks = S.tasks.filter(tk=>tk.due===k && calMatchM(tk.code));
-  let roundsSummary=0;
-  if(isFuture){
-    dueTasks.forEach(tk=>items.push([tk,'due',null]));               // deadlines listed individually
-    roundsSummary = dailyMTdueOn(k).filter(tk=>calMatchM(tk.code)).length;  // daily rounds summarized
-  } else {
-    Object.keys(doneMap).forEach(id=>{ const e=doneMap[id]||{}; if(S.fPerson&&e.byId!==S.fPerson)return; const tk=S.byId[id]; if(!tk||calMatchM(tk.code)) items.push([tk||{id,code:'?',en:id},'done',e]); });
-    dailyMTdueOn(k).filter(tk=>calMatchM(tk.code)).forEach(tk=>{ if(!doneMap[tk.id]) items.push([tk, isToday?'due':'missed', null]); });
-    dueTasks.forEach(tk=>{ if(!doneMap[tk.id]) items.push([tk, isToday?'due':'missed', null]); });
-  }
-  if(!items.length && !roundsSummary){ host.appendChild($(`<div class="muted" style="padding:16px">${t('cal.dayNothing')}</div>`)); return wrap; }
+  const weekend=isWeekend(k);
+  const items=[], added=new Set();
+  // 1) what actually got checked off that day (any frequency) — past/today
+  if(!isFuture) Object.keys(doneMap).forEach(id=>{ const e=doneMap[id]||{}; if(S.fPerson&&e.byId!==S.fPerson)return; const tk=S.byId[id]; if(!tk||calMatchM(tk.code)){ items.push([tk||{id,code:'?',en:id},'done',e]); added.add(id); } });
+  // 2) missed daily rounds — worked weekdays only (never weekends/future)
+  if(!isFuture && !weekend) dailyMTdueOn(k).filter(tk=>calMatchM(tk.code)).forEach(tk=>{ if(!doneMap[tk.id] && !added.has(tk.id)){ items.push([tk, isToday?'due':'missed', null]); added.add(tk.id); } });
+  // 3) deadlines (due-dated tasks) — always shown, with met/upcoming/overdue status
+  S.tasks.filter(tk=>tk.due===k && calMatchM(tk.code)).forEach(tk=>{
+    if(added.has(tk.id)) return;
+    items.push([tk, dueDoneNow(tk)?'done':((isFuture||isToday)?'due':'missed'), null, true]); added.add(tk.id);
+  });
+  if(!items.length){ host.appendChild($(`<div class="muted" style="padding:16px">${t('cal.dayNothing')}</div>`)); return wrap; }
   items.sort((a,b)=>String(a[0].code).localeCompare(String(b[0].code)));
-  items.slice(0,80).forEach(([tk,st,info])=>{
+  items.slice(0,80).forEach(([tk,st,info,isDue])=>{
     host.appendChild($(`<div class="dtask">
       <span class="pill ${st}">${t('st.'+st)}</span>
-      <span style="flex:1;min-width:0"><span class="dt-m">${mName(tk.code)}</span><br>${taskText(tk)}${info?` <span class="muted" style="font-size:.78em">· ${info.by}${info.atStr?' '+info.atStr:''}</span>`:''}</span></div>`));
+      <span style="flex:1;min-width:0"><span class="dt-m">${isDue?'<span class="due-tag" title="'+t('cal.legDue')+'">📅</span> ':''}${mName(tk.code)}</span><br>${taskText(tk)}${info?` <span class="muted" style="font-size:.78em">· ${info.by}${info.atStr?' '+info.atStr:''}</span>`:''}</span></div>`));
   });
   if(items.length>80) host.appendChild($(`<div class="muted" style="padding:12px 16px">+${items.length-80}…</div>`));
-  if(roundsSummary) host.appendChild($(`<div class="dtask" style="color:var(--muted)"><span class="pill due">+${roundsSummary}</span><span style="flex:1">${t('cal.dailyRounds')}</span></div>`));
   return wrap;
 }
 
