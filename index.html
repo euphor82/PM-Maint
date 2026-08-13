@@ -169,9 +169,9 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .cc{font-size:.58rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
 .cc.g{color:var(--good)} .cc.r{color:var(--bad)} .cc.b{color:var(--due)}
 .cc.z{opacity:.22}
-.due-badge{position:absolute;top:2px;right:3px;font-size:.82rem;line-height:1}
-.due-badge.overdue{filter:drop-shadow(0 0 2px var(--bad))}
-.down-badge{position:absolute;top:2px;left:3px;font-size:.72rem;line-height:1;opacity:.85}
+.due-badge{position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--due)}
+.due-badge.met{background:var(--good)} .due-badge.upcoming{background:var(--due)} .due-badge.overdue{background:var(--bad)}
+.down-badge{position:absolute;top:4px;left:4px;width:6px;height:6px;border-radius:1.5px;background:var(--bad)}
 .excl-callout{margin:4px 0 8px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:10px;background:var(--bad-soft)}
 .excl-callout .excl-h{font-weight:800;font-size:.82rem;color:var(--bad);margin-bottom:4px}
 .excl-callout .excl-row{font-size:.9rem;line-height:1.4}
@@ -184,6 +184,11 @@ h2.sec{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(-
 .cfchip.on{color:var(--ink);border-color:var(--gold);background:var(--gold-soft)}
 .cfchip .dt{width:9px;height:9px;border-radius:3px}
 .ud-divider{font-size:.66rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:12px 4px 4px;border-top:1px solid var(--line);margin-top:6px}
+.upc-row{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)}
+.upc-row:first-child{border-top:none}
+.upc-row .upc-info{flex:1;min-width:0;display:flex;gap:8px;align-items:flex-start;text-align:left;background:none;border:none;padding:0}
+.upc-row.done .check{background:var(--good);border-color:var(--good)}
+.upc-row.done .upc-info{opacity:.65}
 .due-tag{font-size:.9em;vertical-align:middle}
 .dt{width:7px;height:7px;border-radius:2px}
 .dt.done{background:var(--good)} .dt.missed{background:var(--bad)} .dt.due{background:var(--due)}
@@ -1349,9 +1354,9 @@ function renderCalendar(){
     }
     const showCounts = !isFuture && !c.weekend && flt!=='due';
     const cls=`cell ${isToday?'today':''} ${isFuture?'future':''} ${c.weekend?'weekend':''} ${S.calDay===k?'selected':''}`;
-    const dueBadge = c.hasDue ? `<span class="due-badge ${c.dueState}" title="${t('cal.legDue')}">📅</span>` : '';
+    const dueBadge = c.hasDue ? `<span class="due-badge ${c.dueState}" title="${t('cal.legDue')}"></span>` : '';
     const dayDown = (!isFuture && flt!=='due') ? downInfoOn(k).filter(d=>calMatchM(d.code)) : [];
-    const downBadge = dayDown.length ? `<span class="down-badge" title="${t('cal.machineDown')}">🔧</span>` : '';
+    const downBadge = dayDown.length ? `<span class="down-badge" title="${t('cal.machineDown')}"></span>` : '';
     let counts='';
     if(showCounts){
       counts = `<div class="cc3"><span class="cc g ${c.done?'':'z'}">●${c.done}</span><span class="cc r ${c.missed?'':'z'}">●${c.missed}</span></div>`;
@@ -1396,13 +1401,18 @@ function renderUpcomingDated(){
   list.forEach(tk=>{
     if(!laterShown && tk.due>end){ host.appendChild($(`<div class="ud-divider">${t('cal.later')}</div>`)); laterShown=true; }
     const met=dueDoneNow(tk), dd=daysBetween(S.todayKey,tk.due);
+    const doneToday=S.todayDone[tk.id];
     const st = met?'done':(dd<0?'missed':'due');
     const dstr=new Date(keyToUTC(tk.due)).toLocaleDateString(lang==='es'?'es':'en',{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'});
     const when = met?'':(dd<0?` · ${t('due.overdue')}`:dd===0?` · ${t('due.today')}`:` · ${t('due.in')} ${dd} ${dd===1?t('cal.day1'):t('cal.dayN')}`);
-    const row=$(`<button class="dtask" style="width:100%;text-align:left;background:none;border:none">
-      <span class="pill ${st}">${t('st.'+st)}</span>
-      <span style="flex:1;min-width:0"><span class="dt-m">📅 ${dstr}${when}</span><br><span class="muted" style="font-size:.82em">${mName(tk.code)}</span> · ${taskText(tk)}</span><span class="chev">›</span></button>`);
-    row.onclick=()=>{ S.calMonth=tk.due.slice(0,7); S.calFilter=''; S.calDay=tk.due; render(); window.scrollTo(0,0); };
+    const row=$(`<div class="upc-row ${met?'done':''}">
+      <button class="check" ${met&&!doneToday?'disabled':''}>${met?'✓':''}</button>
+      <button class="upc-info">
+        <span class="pill ${st}">${t('st.'+st)}</span>
+        <span style="flex:1;min-width:0"><span class="dt-m">${dstr}${when}</span><br><span class="muted" style="font-size:.82em">${mName(tk.code)}</span> · ${taskText(tk)}</span><span class="chev">›</span></button>
+    </div>`);
+    row.querySelector('.check').onclick=()=>{ if(met&&!doneToday)return; toggleCheck(tk); };
+    row.querySelector('.upc-info').onclick=()=>{ S.calMonth=tk.due.slice(0,7); S.calFilter=''; S.calDay=tk.due; render(); window.scrollTo(0,0); };
     host.appendChild(row);
   });
   return wrap;
@@ -1452,9 +1462,20 @@ function renderDayDetail(k){
   }
   view.sort((a,b)=>String(a[0].code).localeCompare(String(b[0].code)));
   view.slice(0,80).forEach(([tk,st,info,isDue])=>{
-    host.appendChild($(`<div class="dtask">
-      <span class="pill ${st}">${t('st.'+st)}</span>
-      <span style="flex:1;min-width:0"><span class="dt-m">${isDue?'<span class="due-tag" title="'+t('cal.legDue')+'">📅</span> ':''}${mName(tk.code)}</span><br>${taskText(tk)}${info?` <span class="muted" style="font-size:.78em">· ${info.by}${info.atStr?' '+info.atStr:''}</span>`:''}</span></div>`));
+    if(isDue){
+      // dated task — checkable right here (records completion for today, same as the Upcoming list)
+      const met=dueDoneNow(tk), doneToday=S.todayDone[tk.id];
+      const row=$(`<div class="upc-row ${met?'done':''}">
+        <button class="check" ${met&&!doneToday?'disabled':''}>${met?'✓':''}</button>
+        <span class="upc-info" style="cursor:default"><span class="pill ${st}">${t('st.'+st)}</span>
+          <span style="flex:1;min-width:0"><span class="dt-m"><span class="due-tag" title="${t('cal.legDue')}">📅</span> ${mName(tk.code)}</span><br>${taskText(tk)}</span></span></div>`);
+      row.querySelector('.check').onclick=()=>{ if(met&&!doneToday)return; toggleCheck(tk); };
+      host.appendChild(row);
+    } else {
+      host.appendChild($(`<div class="dtask">
+        <span class="pill ${st}">${t('st.'+st)}</span>
+        <span style="flex:1;min-width:0"><span class="dt-m">${mName(tk.code)}</span><br>${taskText(tk)}${info?` <span class="muted" style="font-size:.78em">· ${info.by}${info.atStr?' '+info.atStr:''}</span>`:''}</span></div>`));
+    }
   });
   if(view.length>80) host.appendChild($(`<div class="muted" style="padding:12px 16px">+${view.length-80}…</div>`));
   return wrap;
