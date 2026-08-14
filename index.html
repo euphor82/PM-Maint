@@ -873,7 +873,8 @@ async function unCheck(task){
 }
 function toggleCheck(task){
   const d=S.todayDone[task.id];
-  if(d){ if(d.byId!==S.me.id){ toast(d.by+' ✓'); return; } unCheck(task); }
+  // supervisors (canClear) may undo anyone's sign-off; everyone else only their own
+  if(d){ if(d.byId!==S.me.id && !(S.me&&S.me.canClear)){ toast(d.by+' ✓'); return; } unCheck(task); }
   else checkOff(task);
 }
 async function createIssue(data){
