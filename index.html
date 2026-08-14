@@ -900,7 +900,8 @@ async function addPhoto(iid,dataUrl){
 async function deletePhoto(iid,pid){ try{ await deleteDoc(doc(db,'issues',iid,'photos',pid)); }catch(e){ writeFail(e); } }
 function pickPhoto(onReady){
   const inp=document.createElement('input');
-  inp.type='file'; inp.accept='image/*'; inp.setAttribute('capture','environment');
+  // no `capture` attribute → the phone offers a choice: Take Photo OR Photo Library
+  inp.type='file'; inp.accept='image/*';
   inp.onchange=async()=>{
     const f=inp.files&&inp.files[0]; if(!f)return;
     try{ const url=await compressImage(f); onReady(url); }
