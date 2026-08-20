@@ -1,0 +1,227 @@
+rules_version = '2';
+
+// ============================================================
+// Paul Morrell — DCL & Boiler Maintenance
+// Firestore security rules
+//
+// Design notes:
+//  - Clients sign in anonymously (Firebase Anonymous Auth) just to
+//    get a uid; identity inside the app is name + 4-digit PIN.
+//  - THE PIN CHECK LIVES HERE, server-side. The client proves it
+//    knows a PIN by writing sessions/{uid}; the rule compares that
+//    pin against secrets/pins, which NO client can ever read.
+//    A rejected write IS the "wrong PIN" signal.
+//  - Reference content (tasks, wording, people) is written only by
+//    the Apps Script bridge using the Admin SDK, which bypasses
+//    these rules. Clients can never modify it.
+//  - Clearing an issue is restricted to people whose person doc
+//    carries canClear: true (driven from the master sheet).
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------------------------------------
+    function authed() {
+      return request.auth != null;
+    }
+    function sessionPath() {
+      return /databases/$(database)/documents/sessions/$(request.auth.uid);
+    }
+    function hasSession() {
+      return authed() && exists(sessionPath());
+    }
+    // the signed-in person's session data: { personId, pin, at }
+    function me() {
+      return get(sessionPath()).data;
+    }
+    function person(pid) {
+      return get(/databases/$(database)/documents/people/$(pid)).data;
+    }
+    function pinFor(pid) {
+      return get(/databases/$(database)/documents/secrets/pins).data.byId[pid];
+    }
+
+    // ---------- reference content (bridge-only writes) ----------
+    // content/tasks  — all Active tasks, packed in one doc
+    // content/uiText — every UI_TEXT key, packed in one doc
+    match /content/{doc} {
+      allow read: if authed();
+      allow write: if false;
+    }
+
+    // people/{personId} — { name, lang, active, canClear, order }
+    // Individual docs (not packed) because rules below need to
+    // look a person up by id. Never contains a PIN.
+    match /people/{pid} {
+      allow read: if authed();
+      allow write: if false;
+    }
+
+    // secrets/pins — { byId: { darryl: "1234", ... } }
+    // Unreadable and unwritable by every client. The get() calls
+    // in these rules still work — rules run server-side.
+    match /secrets/{doc} {
+      allow read, write: if false;
+    }
+
+    // ---------- sign-in ----------------------------------------
+    // Writing your session IS the PIN check. The doc can only be
+    // created/replaced for your own uid, only naming an active
+    // person, and only with that person's exact PIN.
+    match /sessions/{uid} {
+      allow read: if false;
+      allow create, update: if authed()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['personId', 'pin', 'at'])
+        && request.resource.data.personId is string
+        && request.resource.data.pin is string
+        && person(request.resource.data.personId).active == true
+        && request.resource.data.pin == pinFor(request.resource.data.personId);
+      // sign-out
+      allow delete: if authed() && request.auth.uid == uid;
+    }
+
+    // ---------- daily check-offs -------------------------------
+    // Doc id is "<date>_<taskId>", e.g. "2026-08-07_HOYT-D-001".
+    // The deterministic id makes double sign-off impossible.
+    match /checkoffs/{id} {
+      allow read: if authed();
+      allow create: if hasSession()
+        && request.resource.data.keys().hasAll(['date', 'taskId', 'byId', 'by'])
+        && request.resource.data.keys().hasOnly(['date', 'taskId', 'byId', 'by', 'at', 'unit'])
+        && request.resource.data.byId == me().personId
+        && id == request.resource.data.date + '_' + request.resource.data.taskId;
+      // un-check: the same person who signed it off, or a supervisor (canClear)
+      allow delete: if hasSession()
+        && (resource.data.byId == me().personId
+            || person(me().personId).canClear == true);
+      allow update: if false;
+    }
+
+    // ---------- history (append-only audit log) ----------------
+    // events/{autoId} — { taskId, machineCode, action:'done'|'undone', byId, by, date, at }
+    // Written on every check / un-check. Never edited or deleted:
+    // this is the permanent record of who did what, when.
+    match /events/{id} {
+      allow read: if authed();
+      allow create: if hasSession()
+        && request.resource.data.byId == me().personId
+        && request.resource.data.action in ['done', 'undone'];
+      allow update, delete: if false;
+    }
+
+    // ---------- issues -----------------------------------------
+    match /issues/{iid} {
+      allow read: if authed();
+
+      allow create: if hasSession()
+        && request.resource.data.byId == me().personId
+        && request.resource.data.status == 'open';
+
+      allow update: if hasSession() && (
+        // anyone signed in may flip machine condition
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['usable'])
+        ||
+        // clearing: only people with canClear, only open -> cleared
+        (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'clearedBy', 'clearedAt'])
+          && resource.data.status == 'open'
+          && request.resource.data.status == 'cleared'
+          && person(me().personId).canClear == true
+          && request.resource.data.clearedBy == me().personId
+        )
+        ||
+        // reopening: supervisors (canClear), cleared -> open
+        (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'clearedBy', 'clearedAt'])
+          && resource.data.status == 'cleared'
+          && request.resource.data.status == 'open'
+          && person(me().personId).canClear == true
+        )
+        ||
+        // editing: supervisors (canClear) may change the descriptive fields
+        (
+          person(me().personId).canClear == true
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['note', 'urgent', 'machineCode', 'machineName', 'unit', 'usable'])
+        )
+        ||
+        // note preview cache: any signed-in person may refresh the denormalized
+        // "last note" shown on the Issues cards (written alongside a real note append)
+        (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['lastNote', 'lastNoteLang'])
+        )
+      );
+
+      // deleting: supervisors (canClear) only
+      allow delete: if hasSession() && person(me().personId).canClear == true;
+
+      // progress notes — you may edit/delete your OWN typed note; system {en,es}
+      // log lines (text is a map, not a string) stay locked as the audit trail.
+      match /notes/{nid} {
+        allow read: if authed();
+        allow create: if hasSession()
+          && request.resource.data.byId == me().personId;
+        allow update: if hasSession()
+          && resource.data.byId == me().personId
+          && resource.data.text is string
+          && request.resource.data.text is string
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['text', 'lang', 'editedAt']);
+        allow delete: if hasSession()
+          && resource.data.byId == me().personId
+          && resource.data.text is string;
+      }
+
+      // photos — everyone can see; uploader or a supervisor can remove
+      match /photos/{pid} {
+        allow read: if authed();
+        allow create: if hasSession()
+          && request.resource.data.byId == me().personId;
+        allow update: if false;
+        allow delete: if hasSession()
+          && (resource.data.byId == me().personId
+              || person(me().personId).canClear == true);
+      }
+    }
+
+    // ---------- speed summaries (fan-out on write) --------------
+    // days/{date} — per-day packed summary the calendar reads
+    //   { done: { taskId: {byId, by} }, ... }
+    // state/lastDone — last completion per task, for scheduling
+    //   { byTask: { taskId: {date, byId} } }
+    // Maintained by the app alongside each check-off; authoritative
+    // history stays in /checkoffs. Any signed-in person may update.
+    match /days/{d} {
+      allow read: if authed();
+      allow create, update: if hasSession();
+      allow delete: if false;
+    }
+    match /state/{doc} {
+      allow read: if authed();
+      allow create, update: if hasSession();
+      allow delete: if false;
+    }
+
+    // ---------- per-person settings ----------------------------
+    // prefs/{personId} — { notify, dueWeekBefore, dueOnDay, overdueEvery }
+    match /prefs/{pid} {
+      allow read: if hasSession() && me().personId == pid;
+      allow write: if hasSession() && me().personId == pid
+        && request.resource.data.keys().hasOnly(['notify', 'dueWeekBefore', 'dueOnDay', 'overdueEvery'])
+        && (!('notify' in request.resource.data) || request.resource.data.notify in ['urgent', 'all', 'off'])
+        && (!('overdueEvery' in request.resource.data) || request.resource.data.overdueEvery in ['off', 'daily', '3days', 'weekly']);
+    }
+
+    // tokens/{uid} — this phone's push token (read by bridge only)
+    match /tokens/{uid} {
+      allow read: if false;
+      allow write: if hasSession() && request.auth.uid == uid;
+    }
+  }
+}
