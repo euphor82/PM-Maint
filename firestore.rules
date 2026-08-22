@@ -213,9 +213,10 @@ service cloud.firestore {
     match /prefs/{pid} {
       allow read: if hasSession() && me().personId == pid;
       allow write: if hasSession() && me().personId == pid
-        && request.resource.data.keys().hasOnly(['notify', 'dueWeekBefore', 'dueOnDay', 'overdueEvery'])
+        && request.resource.data.keys().hasOnly(['notify', 'dueWeekBefore', 'dueOnDay', 'overdueEvery', 'notifyActivity'])
         && (!('notify' in request.resource.data) || request.resource.data.notify in ['urgent', 'all', 'off'])
-        && (!('overdueEvery' in request.resource.data) || request.resource.data.overdueEvery in ['off', 'daily', '3days', 'weekly']);
+        && (!('overdueEvery' in request.resource.data) || request.resource.data.overdueEvery in ['off', 'daily', '3days', 'weekly'])
+        && (!('notifyActivity' in request.resource.data) || request.resource.data.notifyActivity is bool);
     }
 
     // tokens/{uid} — this phone's push token (read by bridge only)

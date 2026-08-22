@@ -528,6 +528,9 @@ const EXTRA = {
   "set.device":{en:"Allow notifications on this phone",es:"Permitir notificaciones en este teléfono"},
   "set.deviceNote":{en:"Coming with the notification rollout.",es:"Disponible con la próxima actualización."},
   "set.badgeAlways":{en:"The Issues badge shows for everyone regardless of this setting.",es:"La insignia de Problemas aparece para todos sin importar este ajuste."},
+  "set.activityTitle":{en:"Issue activity (supervisors)",es:"Actividad de problemas (supervisores)"},
+  "set.activityToggle":{en:"Notes added & issues cleared",es:"Notas agregadas y problemas resueltos"},
+  "set.activityNote":{en:"Get a push whenever anyone adds a note, clears or reopens an issue, or changes a machine's up/down status.",es:"Recibe un aviso cuando alguien agrega una nota, resuelve o reabre un problema, o cambia el estado de una máquina."},
   "signedout.auto":{en:"Signed out for the day.",es:"Sesión cerrada por el día."},
   "flag.friday":{en:"Finish by Friday",es:"Terminar antes del viernes"},
   "err.write":{en:"Couldn't save — check signal and try again.",es:"No se pudo guardar — revisa la señal e intenta otra vez."},
@@ -1822,7 +1825,7 @@ function toast(msg){
 /* ---------- settings ---------- */
 async function openSettings(){
   if(!S.me)return;
-  let P={notify:'urgent',dueWeekBefore:true,dueOnDay:true,overdueEvery:'daily'};
+  let P={notify:'urgent',dueWeekBefore:true,dueOnDay:true,overdueEvery:'daily',notifyActivity:true};
   try{ const d=await getDoc(doc(db,'prefs',S.me.id)); if(d.exists())P={...P,...d.data()}; }catch(e){}
   const savePref=(patch)=>{ Object.assign(P,patch); return setDoc(doc(db,'prefs',S.me.id),patch,{merge:true}).catch(e=>writeFail(e)); };
   const bg=$('<div class="sheet-bg"></div>');
@@ -1834,6 +1837,9 @@ async function openSettings(){
     <div id="radios"></div>
     <div id="devrow" style="margin-top:8px"></div>
     <div class="setnote">${t('set.badgeAlways')}</div>
+    ${S.me.canClear?`<div class="field-lbl" style="margin-top:20px">🛠️ ${t('set.activityTitle')}</div>
+    <div id="acttoggle"></div>
+    <div class="setnote">${t('set.activityNote')}</div>`:''}
     <div class="field-lbl" style="margin-top:20px">📅 ${t('set.dueTitle')}</div>
     <div id="duetoggles"></div>
     <button class="btn-primary" data-close style="margin-top:18px">${t('task.close')}</button>
@@ -1865,6 +1871,14 @@ async function openSettings(){
     el.appendChild(w);
   }
   paintDue();
+  function paintActivity(){
+    const el=sheet.querySelector('#acttoggle'); if(!el)return; el.innerHTML='';
+    const on=P.notifyActivity!==false;
+    const r=$(`<button class="radio ${on?'on':''}"><span class="dotr"></span><span class="rlabel">${t('set.activityToggle')}</span></button>`);
+    r.onclick=()=>{ savePref({notifyActivity:!on}); paintActivity(); };
+    el.appendChild(r);
+  }
+  paintActivity();
   function paintDev(){
     const el=sheet.querySelector('#devrow'); if(!el) return; el.innerHTML='';
     if(!notifSupported()){
