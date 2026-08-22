@@ -40,6 +40,8 @@ function stopNotifications() {
 function pushNewIssues() {
   var token = ScriptApp.getOAuthToken();
 
+  pushIssueActivity(token);   // notes / clears / reopens / up-down toggles → supervisors (runs every minute)
+
   var issues = firestoreRunQuery(token, {
     from: [{ collectionId: 'issues' }],
     orderBy: [{ field: { fieldPath: 'at' }, direction: 'DESCENDING' }],
@@ -98,6 +100,87 @@ function sendPush(token, tk, issue, urgent) {
   } else if (code < 200 || code >= 300) {
     Logger.log('FCM ' + code + ': ' + res.getContentText().slice(0, 250));
   }
+}
+
+/* ================= issue activity: notes / clears / reopens / up-down (every minute) =================
+   Every progress note is pushed to supervisors (canClear) who leave the "Issue activity" toggle on.
+   One mechanism covers everything the supervisors asked for, because each of those actions writes a
+   note: a typed note (text is a plain string), or an app-generated log line when an issue is
+   cleared/reopened or a machine is flagged up/down (text is an {en,es} map). New issues are NOT
+   included here — their initial description lives on the issue doc and is handled by pushNewIssues. */
+function pushIssueActivity(token) {
+  // Collection-group query across every issue's notes subcollection, newest first.
+  var res = UrlFetchApp.fetch(BASE + ':runQuery', {
+    method: 'post', contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ structuredQuery: {
+      from: [{ collectionId: 'notes', allDescendants: true }],
+      orderBy: [{ field: { fieldPath: 'at' }, direction: 'DESCENDING' }],
+      limit: 25
+    } }), muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) { Logger.log('notes runQuery ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 250)); return; }
+
+  var cutoff = Date.now() - 20 * 60 * 1000;   // ignore history on first deploy; only recent, unsent notes
+  var fresh = [];
+  JSON.parse(res.getContentText()).forEach(function (r) {
+    if (!r.document) return;
+    var n = decodeFields(r.document.fields);
+    if (n.pushSent) return;                                  // already notified
+    var at = n.at ? Date.parse(n.at) : 0;
+    if (at < cutoff) return;
+    n._path = r.document.name.split('/documents/')[1];       // issues/{iid}/notes/{nid}
+    fresh.push(n);
+  });
+  if (!fresh.length) return;
+
+  var people = firestoreList(token, 'people');
+  var prefs  = firestoreList(token, 'prefs');
+  var tokens = firestoreList(token, 'tokens');
+  var prefById = {}; prefs.forEach(function (p) { prefById[p.id] = p; });
+  var toksByPerson = {};
+  tokens.forEach(function (tk) { if (tk.token && tk.personId) (toksByPerson[tk.personId] = toksByPerson[tk.personId] || []).push(tk); });
+
+  var issueCache = {};
+  fresh.forEach(function (n) {
+    var iid = n._path.split('/')[1];                         // ['issues', iid, 'notes', nid]
+    if (!(iid in issueCache)) issueCache[iid] = firestoreGet(token, 'issues/' + iid) || null;
+    var issue = issueCache[iid];
+
+    people.forEach(function (p) {
+      if (!p.active || !p.canClear) return;                  // supervisors only
+      if (p.id === n.byId) return;                           // don't ping the note's own author
+      var pr = prefById[p.id] || {};
+      if (pr.notifyActivity === false) return;               // dedicated opt-out toggle (default on)
+      (toksByPerson[p.id] || []).forEach(function (tk) { sendNotePush(token, tk, issue, iid, n); });
+    });
+    firestorePatch(token, n._path, { pushSent: { booleanValue: true } }, ['pushSent']);
+  });
+}
+
+function sendNotePush(token, tk, issue, iid, note) {
+  var lang = tk.lang || 'en';
+  var machine = (issue && issue.machineName) || (lang === 'es' ? 'Otro' : 'Other');
+  var unit = (issue && issue.unit) ? (' · ' + issue.unit) : '';
+  var isAction = (note.text && typeof note.text === 'object');   // {en,es} = app-generated log line
+  var text = isAction ? (note.text[lang] || note.text.en || '') : (note.text || '');
+  var title = (isAction
+    ? (lang === 'es' ? 'Actualización: ' : 'Update: ')
+    : (lang === 'es' ? 'Nueva nota: ' : 'New note: ')) + machine + unit;
+  var body = String(text).slice(0, 120) + (note.by ? ' — ' + note.by : '');
+  var msg = { message: {
+    token: tk.token,
+    data: { title: title, body: body, url: APP_URL, issueId: iid, kind: 'activity' },
+    webpush: { headers: { Urgency: 'high' }, fcmOptions: { link: APP_URL } }
+  } };
+  var res = UrlFetchApp.fetch(FCM_URL, {
+    method: 'post', contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify(msg), muteHttpExceptions: true
+  });
+  var code = res.getResponseCode();
+  if (code === 404 || code === 410) firestoreDelete(token, 'tokens/' + tk.id);
+  else if (code < 200 || code >= 300) Logger.log('ActFCM ' + code + ': ' + res.getContentText().slice(0, 200));
 }
 
 /* ---- manual test: send yourself a ping (run from editor after enabling on a phone) ---- */
